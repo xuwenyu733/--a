@@ -1,0 +1,11 @@
+{
+  "description": "微信开发者工具私有配置",
+  "projectname": "campus-miniprogram",
+  "libVersion": "3.8.12",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "minified": false,
+    "compileHotReLoad": true
+  }
+}

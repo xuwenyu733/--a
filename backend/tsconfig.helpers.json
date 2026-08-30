@@ -1,0 +1,28 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "checkJs": true,
+    "strict": false
+  },
+  "include": [
+    "src/utils/orderHelpers.js",
+    "src/utils/paymentHelpers.js",
+    "src/utils/chatHelpers.js",
+    "src/utils/reviewHelpers.js",
+    "src/utils/pagination.js",
+    "src/utils/deliveryHelpers.js",
+    "src/utils/authHelpers.js",
+    "src/utils/resolveUploadUrls.js",
+    "src/utils/fileUrl.js",
+    "src/utils/publicBaseUrl.js",
+    "src/utils/cache.js",
+    "src/utils/authCookie.js",
+    "src/utils/network.js",
+    "src/utils/clientType.js",
+    "src/utils/productPinyin.js",
+    "src/utils/productSearch.js",
+    "src/utils/productQuery.js",
+    "src/utils/orderQuery.js",
+    "src/utils/response.js"
+  ]
+}

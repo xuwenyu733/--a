@@ -1,0 +1,233 @@
+{
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "校园二手",
+        "enablePullDownRefresh": true,
+        "onReachBottomDistance": 120
+      }
+    },
+    {
+      "path": "pages/search/index",
+      "style": {
+        "navigationBarTitleText": "搜索"
+      }
+    },
+    {
+      "path": "pages/products/list",
+      "style": {
+        "navigationBarTitleText": "市集",
+        "enablePullDownRefresh": true,
+        "onReachBottomDistance": 120
+      }
+    },
+    {
+      "path": "pages/products/detail",
+      "style": {
+        "navigationBarTitleText": "商品详情"
+      }
+    },
+    {
+      "path": "pages/chat/list",
+      "style": {
+        "navigationBarTitleText": "消息",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/chat/room",
+      "style": {
+        "navigationBarTitleText": "聊天"
+      }
+    },
+    {
+      "path": "pages/user/index",
+      "style": {
+        "navigationBarTitleText": "我的"
+      }
+    },
+    {
+      "path": "pages/orders/index",
+      "style": {
+        "navigationBarTitleText": "我的订单"
+      }
+    },
+    {
+      "path": "pages/orders/review",
+      "style": {
+        "navigationBarTitleText": "评价订单"
+      }
+    },
+    {
+      "path": "pages/favorites/index",
+      "style": {
+        "navigationBarTitleText": "我的收藏",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/products/publish",
+      "style": {
+        "navigationBarTitleText": "发布闲置"
+      }
+    },
+    {
+      "path": "pages/user/my-products",
+      "style": {
+        "navigationBarTitleText": "我的发布"
+      }
+    },
+    {
+      "path": "pages/user/verify-student",
+      "style": {
+        "navigationBarTitleText": "学生认证"
+      }
+    },
+    {
+      "path": "pages/user/verify-merchant",
+      "style": {
+        "navigationBarTitleText": "商家入驻"
+      }
+    },
+    {
+      "path": "pages/user/verify-courier",
+      "style": {
+        "navigationBarTitleText": "骑手认证"
+      }
+    },
+    {
+      "path": "pages/user/settings",
+      "style": {
+        "navigationBarTitleText": "账号设置"
+      }
+    },
+    {
+      "path": "pages/user/shop-settings",
+      "style": {
+        "navigationBarTitleText": "店铺设置"
+      }
+    },
+    {
+      "path": "pages/user/profile",
+      "style": {
+        "navigationBarTitleText": "用户主页",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/user/friend-search",
+      "style": {
+        "navigationBarTitleText": "添加好友"
+      }
+    },
+    {
+      "path": "pages/delivery/index",
+      "style": {
+        "navigationBarTitleText": "校园跑腿"
+      }
+    },
+    {
+      "path": "pages/delivery/post",
+      "style": {
+        "navigationBarTitleText": "发布跑腿"
+      }
+    },
+    {
+      "path": "pages/delivery/hall",
+      "style": {
+        "navigationBarTitleText": "接单大厅",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/delivery/orders",
+      "style": {
+        "navigationBarTitleText": "跑腿订单",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/notifications/index",
+      "style": {
+        "navigationBarTitleText": "通知中心",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/shop/index",
+      "style": {
+        "navigationBarTitleText": "店铺",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/resume/build",
+      "style": {
+        "navigationBarTitleText": "AI 简历"
+      }
+    },
+    {
+      "path": "pages/login/login",
+      "style": {
+        "navigationBarTitleText": "登录"
+      }
+    },
+    {
+      "path": "pages/register/register",
+      "style": {
+        "navigationBarTitleText": "注册"
+      }
+    },
+    {
+      "path": "pages/auth/wechat-setup",
+      "style": {
+        "navigationBarTitleText": "完善信息"
+      }
+    },
+    {
+      "path": "pages/user/address",
+      "style": {
+        "navigationBarTitleText": "收货地址"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "校园二手",
+    "navigationBarBackgroundColor": "#409eff",
+    "backgroundColor": "#f5f7fa"
+  },
+  "tabBar": {
+    "color": "#909399",
+    "selectedColor": "#409eff",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "static/tab/home.png",
+        "selectedIconPath": "static/tab/home-active.png"
+      },
+      {
+        "pagePath": "pages/products/list",
+        "text": "市集",
+        "iconPath": "static/tab/shop.png",
+        "selectedIconPath": "static/tab/shop-active.png"
+      },
+      {
+        "pagePath": "pages/chat/list",
+        "text": "消息",
+        "iconPath": "static/tab/chat.png",
+        "selectedIconPath": "static/tab/chat-active.png"
+      },
+      {
+        "pagePath": "pages/user/index",
+        "text": "我的",
+        "iconPath": "static/tab/user.png",
+        "selectedIconPath": "static/tab/user-active.png"
+      }
+    ]
+  }
+}

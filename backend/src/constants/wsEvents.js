@@ -1,0 +1,16 @@
+export const WS_EVENTS = {
+  PING: 'ping',
+  PONG: 'pong',
+  AUTH: 'auth',
+  AUTH_OK: 'auth:ok',
+  MESSAGE_SEND: 'message:send',
+  MESSAGE_SEND_OK: 'message:send:ok',
+  MESSAGE_RECEIVE: 'message:receive',
+  MESSAGE_READ: 'message:read',
+  MESSAGE_READ_OK: 'message:read:ok',
+  TYPING: 'typing',
+  NOTIFICATION: 'notification',
+  DELIVERY_UPDATE: 'delivery:update',
+  DELIVERY_NEW: 'delivery:new',
+  ERROR: 'error',
+}

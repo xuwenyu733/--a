@@ -1,0 +1,134 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --app-bg: #f5f7fa;
+  --app-text: #303133;
+  --app-header-bg: #ffffff;
+  --app-border: #ebeef5;
+  --app-card-bg: #ffffff;
+  --app-muted: #909399;
+  --chat-bg: #f5f7fa;
+  --bubble-peer-bg: #ffffff;
+}
+
+html.dark {
+  color-scheme: dark;
+  --app-bg: #141414;
+  --app-text: #e5eaf3;
+  --app-header-bg: #1d1e1f;
+  --app-border: #363637;
+  --app-card-bg: #1d1e1f;
+  --app-muted: #a3a6ad;
+  --chat-bg: #0a0a0a;
+  --bubble-peer-bg: #262727;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: var(--app-bg);
+  color: var(--app-text);
+  transition: background 0.2s, color 0.2s;
+}
+
+a {
+  color: #409eff;
+  text-decoration: none;
+}
+
+#app {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--app-bg);
+}
+
+.el-main {
+  --el-main-padding: 16px;
+  background: var(--app-bg) !important;
+}
+
+/* 用户端顶栏 */
+.layout .header {
+  background: var(--app-header-bg) !important;
+  border-bottom-color: var(--app-border) !important;
+}
+
+.layout .logo {
+  color: #409eff;
+}
+
+html.dark .layout .desktop-menu {
+  --el-menu-bg-color: var(--app-header-bg);
+  --el-menu-text-color: var(--app-text);
+  --el-menu-hover-bg-color: #262727;
+  --el-menu-active-color: #409eff;
+}
+
+/* 后台侧栏布局 */
+.admin-layout .el-main {
+  background: var(--app-bg);
+}
+
+html.dark .admin-layout .el-card {
+  --el-card-bg-color: var(--app-card-bg);
+  --el-card-border-color: var(--app-border);
+}
+
+/* 聊天室 */
+.chat-room .messages {
+  background: var(--chat-bg) !important;
+}
+
+.chat-room .bubble-text:not(.msg-row.mine .bubble-text) {
+  background: var(--bubble-peer-bg) !important;
+  color: var(--app-text) !important;
+}
+
+.chat-room .search-bar {
+  border-bottom: 1px solid var(--app-border);
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+}
+
+.chat-room .typing-hint {
+  color: var(--app-muted);
+  font-size: 13px;
+  padding: 4px 16px;
+}
+
+.product-card .cover,
+.product-card .no-img {
+  background: var(--app-border);
+}
+
+.product-card .no-img {
+  color: var(--app-muted);
+}
+
+.chat-highlight {
+  background: #ffe066;
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+html.dark .chat-highlight {
+  background: #8a6d3b;
+  color: #fff;
+}
+
+html.dark .service-card--trade { background: linear-gradient(160deg, #1a2a3a, #1d2e3f); }
+html.dark .service-card--resume-build { background: linear-gradient(160deg, #1a2f24, #1d3328); }
+html.dark .service-card--resume-opt { background: linear-gradient(160deg, #2a2440, #2d2648); }
+html.dark .service-card--delivery { background: linear-gradient(160deg, #3a2a1a, #3d2e1d); }
+html.dark .hero { background: linear-gradient(135deg, #1a2a3a, #1a2f24); }
+html.dark .skeleton-card { border-color: var(--app-border); }
+
+@media (max-width: 768px) {
+  .el-table { font-size: 13px; }
+  .el-dialog { width: 92% !important; max-width: 420px; }
+  .el-message-box { width: 90% !important; }
+}

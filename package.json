@@ -1,0 +1,32 @@
+{
+  "name": "campus-platform",
+  "private": true,
+  "description": "校园生活服务平台（二手 · 简历 · 跑腿）",
+  "scripts": {
+    "dev": "bash scripts/start-dev.sh",
+    "stop": "bash scripts/stop-dev.sh",
+    "restart:dev": "bash scripts/stop-dev.sh && bash scripts/start-dev.sh",
+    "restart:prod": "cd backend && npm run restart:prod",
+    "build": "cd frontend && npm run build",
+    "dev:uniapp": "cd uniapp && npm run dev:mp-weixin",
+    "build:uniapp": "cd uniapp && npm run build:mp-weixin",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down",
+    "smoke": "cd backend && npm run smoke",
+    "test": "cd backend && npm test && cd ../frontend && npm test && cd ../uniapp && npm test",
+    "test:backend": "cd backend && npm test",
+    "test:backend:unit": "cd backend && npm run test:unit",
+    "test:backend:integration": "cd backend && npm run test:integration",
+    "test:frontend": "cd frontend && npm test",
+    "test:server": "cd backend && npm test",
+    "test:server:unit": "cd backend && npm run test:unit",
+    "test:server:integration": "cd backend && npm run test:integration",
+    "test:client": "cd frontend && npm test",
+    "test:uniapp": "cd uniapp && npm test",
+    "seed": "cd backend && npm run seed",
+    "check:secrets": "node scripts/check-secrets.mjs"
+  },
+  "devDependencies": {
+    "rollup-plugin-visualizer": "^7.0.1"
+  }
+}

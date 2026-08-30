@@ -1,0 +1,465 @@
+/* 简历创作 — 三套版式（表单预览 + AI Markdown 结果共用） */
+
+.resume-tpl {
+  --resume-accent: #2d8f4e;
+  --resume-accent-light: #e8f5ec;
+  --resume-bar-bg: #eef1f4;
+  --resume-text: #1a1a1a;
+  --resume-muted: #64748b;
+  font-family: 'Microsoft YaHei', 'PingFang SC', Calibri, 'Helvetica Neue', sans-serif;
+  color: var(--resume-text);
+  font-size: 11pt;
+  line-height: 1.2;
+}
+
+.resume-tpl--classic-green {
+  --resume-accent: #2d8f4e;
+  --resume-accent-light: #e8f5ec;
+  --resume-bar-bg: #f2f2f2;
+}
+
+.resume-tpl--modern-blue {
+  --resume-accent: #2f5496;
+  --resume-accent-light: #eff6ff;
+  --resume-bar-bg: #f2f2f2;
+}
+
+.resume-tpl--sidebar-navy {
+  --resume-accent: #1e3a5f;
+  --resume-accent-light: #e8eef5;
+}
+
+.resume-tpl__doc {
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* A4 纸张预览框（210mm × 297mm，与 PDF 导出一致） */
+.resume-a4-frame {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 24px;
+}
+
+.resume-a4-sheet {
+  width: 210mm;
+  min-height: auto;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 10mm 10mm 12mm;
+  box-sizing: border-box;
+  background: #fff;
+  box-shadow: 0 2px 16px rgba(15, 23, 42, 0.1);
+  border: 1px solid #e2e8f0;
+  overflow: visible;
+  position: relative;
+}
+
+.resume-a4-fit-target {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.resume-a4-sheet .resume-form-doc,
+.resume-a4-sheet .markdown-body {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 860px) {
+  .resume-a4-sheet {
+    width: 100%;
+    min-height: auto;
+    padding: 16px;
+  }
+
+  .resume-a4-sheet .resume-form-doc,
+  .resume-a4-sheet .markdown-body {
+    min-height: auto;
+  }
+}
+
+/* 表单实时预览：完整版式 DOM，勿套用 Markdown 网格 */
+.resume-form-doc {
+  display: block;
+  width: 100%;
+  min-width: 280px;
+  overflow-x: auto;
+}
+
+.resume-form-doc .resume-doc {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.resume-form-doc .resume-section__title {
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+.resume-form-doc .resume-list {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.resume-form-doc .resume-list li {
+  margin-bottom: 4px;
+}
+
+.resume-muted {
+  color: var(--resume-muted);
+  font-size: 12px;
+}
+
+.resume-list {
+  margin: 0;
+  padding-left: 1.2em;
+}
+
+.resume-list--inline {
+  list-style: disc;
+  padding-left: 1.1em;
+}
+
+/* —— 表单预览结构 —— */
+
+.resume-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 88px;
+  column-gap: 10px;
+  align-items: start;
+  margin-bottom: 6px;
+}
+
+.resume-head__main {
+  grid-column: 1;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.resume-photo {
+  grid-column: 2;
+  grid-row: 1;
+  flex-shrink: 0;
+}
+
+.resume-name {
+  margin: 0 0 4px;
+  font-size: 18pt;
+  font-weight: 700;
+  color: var(--resume-accent);
+  letter-spacing: 0.02em;
+  line-height: 1.15;
+}
+
+/* 单列联系方式列表 — 对齐参考模版 */
+.resume-meta-list {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11pt;
+  line-height: 1.55;
+  columns: 2;
+  column-gap: 20px;
+}
+
+.resume-meta-list li {
+  display: flex;
+  align-items: baseline;
+  break-inside: avoid;
+  padding: 0;
+}
+
+.resume-meta-label {
+  flex-shrink: 0;
+  min-width: 4.4em;
+  white-space: nowrap;
+  color: var(--resume-text);
+}
+
+.resume-meta-value {
+  flex: 1;
+  min-width: 0;
+  word-break: normal;
+  overflow-wrap: break-word;
+  color: var(--resume-text);
+}
+
+.resume-meta-inline {
+  margin: 0;
+  padding: 0;
+  font-size: 11pt;
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+.resume-meta-inline__sep {
+  color: #555;
+  padding: 0 3px;
+}
+
+.resume-section {
+  margin-bottom: 8px;
+}
+
+.resume-section__title {
+  margin: 0;
+  padding: 5px 12px;
+  font-size: 13pt;
+  font-weight: 700;
+  color: #fff;
+  background: var(--resume-accent);
+  border-radius: 0;
+  line-height: 1.25;
+}
+
+.resume-section__rule {
+  height: 2px;
+  background: var(--resume-accent);
+  margin: 0;
+}
+
+.resume-section__body {
+  padding: 6px 0 0;
+  font-size: 11pt;
+  line-height: 1.2;
+}
+
+.resume-content-block {
+  border: 1px solid #1a1a1a;
+  padding: 5px 8px 6px;
+  box-sizing: border-box;
+}
+
+.resume-tag-line {
+  margin: 0 0 4px;
+  font-size: 11pt;
+  line-height: 1.25;
+  text-align: justify;
+}
+
+.resume-tag-line:last-child {
+  margin-bottom: 0;
+}
+
+.resume-tag-line strong {
+  font-weight: 700;
+}
+
+.resume-section__body p {
+  margin: 4px 0;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.resume-project {
+  margin-bottom: 6px;
+  border: 1px solid #1a1a1a;
+  border-radius: 0;
+  overflow: visible;
+  box-sizing: border-box;
+}
+
+.resume-project__bar {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0;
+  align-items: stretch;
+  padding: 0;
+  background: var(--resume-bar-bg);
+  font-size: 11pt;
+  border: none;
+  border-bottom: 1px solid #1a1a1a;
+  text-align: center;
+}
+
+.resume-project__bar > span {
+  padding: 6px 8px;
+  border-right: 1px solid #1a1a1a;
+  font-weight: 400;
+  line-height: 1.25;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.resume-project__bar > span:last-child {
+  border-right: none;
+}
+
+.resume-project__name,
+.resume-project__role,
+.resume-project__date {
+  color: var(--resume-text);
+  font-size: 11pt;
+  white-space: normal;
+}
+
+.resume-project__body {
+  padding: 5px 8px 6px;
+  font-size: 11pt;
+  line-height: 1.2;
+  border: none;
+}
+
+.resume-project__body p {
+  margin: 0 0 4px;
+}
+
+.resume-project__body ul {
+  margin: 2px 0 4px;
+  padding-left: 1.2em;
+}
+
+.resume-project__body li {
+  margin-bottom: 2px;
+}
+
+.resume-exp {
+  margin-bottom: 8px;
+  font-size: 11pt;
+  line-height: 1.2;
+}
+
+.resume-exp__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+
+/* 经典绿条 / 专业蓝条 / 沉稳深蓝 — 统一单栏版式 */
+.resume-doc--standard .resume-head--standard,
+.resume-doc--classic .resume-head--classic {
+  border-bottom: none;
+}
+
+/* —— AI 生成 Markdown：三套模版均套用经典单栏视觉 —— */
+
+.resume-tpl .markdown-body {
+  font-size: 11pt;
+  line-height: 1.2;
+}
+
+.resume-markdown-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 88px;
+  column-gap: 10px;
+  align-items: start;
+  margin-bottom: 6px;
+}
+
+.resume-markdown-head__main {
+  grid-column: 1;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.resume-markdown-head__photo {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.resume-markdown-head__photo .resume-photo {
+  float: none;
+  margin: 0;
+}
+
+.resume-markdown-head__photo img,
+.resume-photo img {
+  width: 88px !important;
+  height: 123px !important;
+  max-width: 88px !important;
+  max-height: 123px !important;
+  object-fit: cover;
+  border: 1px solid #cbd5e1;
+  border-radius: 2px;
+  display: block;
+}
+
+/* 文首误渲染的大图隐藏（已收入页眉小图） */
+.resume-tpl__doc.markdown-body > p:first-child img,
+.resume-tpl__doc.markdown-body > p:only-child img {
+  display: none !important;
+}
+
+.resume-markdown-head__main > h1,
+.resume-markdown-head__main > .resume-name {
+  font-size: 18pt;
+  font-weight: 700;
+  color: var(--resume-accent);
+  margin: 0 0 4px;
+  line-height: 1.15;
+}
+
+.resume-markdown-head__main > .resume-meta-list {
+  margin-bottom: 0;
+}
+
+/* 已由 transform 包成 .resume-section；兜底隐藏未转换的裸 h2 */
+.resume-tpl .markdown-body > h2 {
+  display: none;
+}
+
+.resume-tpl .resume-section {
+  margin-bottom: 8px;
+}
+
+.resume-tpl .resume-section__body--projects {
+  padding-top: 4px;
+}
+
+.resume-tpl .markdown-body .resume-project + .resume-project {
+  margin-top: 0;
+}
+
+.resume-tpl--classic-green .markdown-body h3,
+.resume-tpl--modern-blue .markdown-body h3,
+.resume-tpl--sidebar-navy .markdown-body h3 {
+  display: none;
+}
+
+.resume-tpl .markdown-body p,
+.resume-tpl .markdown-body li,
+.resume-tpl .markdown-body td,
+.resume-tpl .markdown-body th,
+.resume-tpl .markdown-body blockquote,
+.resume-tpl .resume-project__body,
+.resume-tpl .resume-project__body p {
+  font-size: 11pt;
+  line-height: 1.2;
+}
+
+.resume-tpl--classic-green .markdown-body ul,
+.resume-tpl--classic-green .markdown-body ol,
+.resume-tpl--modern-blue .markdown-body ul,
+.resume-tpl--modern-blue .markdown-body ol,
+.resume-tpl--sidebar-navy .markdown-body ul,
+.resume-tpl--sidebar-navy .markdown-body ol {
+  margin: 3px 0 6px;
+  padding-left: 1.3em;
+}
+
+.resume-tpl .markdown-body li {
+  margin-bottom: 2px;
+}
+
+.resume-tpl--classic-green .markdown-body p,
+.resume-tpl--modern-blue .markdown-body p,
+.resume-tpl--sidebar-navy .markdown-body p {
+  margin: 4px 0;
+}
+
+.resume-tpl .resume-photo--injected {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .resume-meta-list {
+    columns: 1;
+  }
+}
