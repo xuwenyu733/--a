@@ -1,14 +1,16 @@
 import config from '@/config/index'
 import { getAccessToken } from './auth'
+import {
+  parseResponseBody,
+  refreshAccessTokenOnce,
+  handleSessionExpired,
+  shouldRetryAuth,
+} from './authRetry'
 
 function parseUploadResponse(res) {
-  let body = res.data
-  if (typeof body === 'string') {
-    try {
-      body = JSON.parse(body)
-    } catch {
-      throw new Error('上传响应解析失败')
-    }
+  const body = parseResponseBody(res.data)
+  if (!body || typeof body.code === 'undefined') {
+    throw new Error('上传响应解析失败')
   }
   if (body.code !== 0) throw new Error(body.message || '上传失败')
   return body.data
@@ -18,7 +20,7 @@ export function pickUploadPath(data) {
   return data?.paths?.[0] ?? data?.urls?.[0] ?? ''
 }
 
-export function uploadProductImage(filePath) {
+export function uploadProductImage(filePath, canRetry = true) {
   const token = getAccessToken()
   return new Promise((resolve, reject) => {
     uni.uploadFile({
@@ -30,6 +32,13 @@ export function uploadProductImage(filePath) {
         'X-Client': 'miniprogram',
       },
       success: (res) => {
+        const body = parseResponseBody(res.data)
+        if (canRetry && shouldRetryAuth(body, Boolean(token))) {
+          refreshAccessTokenOnce()
+            .then(() => uploadProductImage(filePath, false).then(resolve).catch(reject))
+            .catch(() => handleSessionExpired(reject))
+          return
+        }
         try {
           resolve(parseUploadResponse(res))
         } catch (e) {

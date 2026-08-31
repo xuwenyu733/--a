@@ -1,22 +1,10 @@
 import config from '@/config/index'
-import { getAccessToken, getRefreshToken, refreshTokenRequest, clearSession } from './auth'
-import { disconnectWs } from './ws'
-
-let refreshing = null
-let sessionExpiredHandled = false
-
-function handleSessionExpired(reject) {
-  clearSession()
-  disconnectWs()
-  if (!sessionExpiredHandled) {
-    sessionExpiredHandled = true
-    try {
-      uni.showToast({ title: '登录已过期，请重新登录', icon: 'none' })
-    } catch { /* ignore */ }
-    setTimeout(() => { sessionExpiredHandled = false }, 5000)
-  }
-  reject(new Error('登录已失效'))
-}
+import { getAccessToken, getRefreshToken } from './auth'
+import {
+  isAuthErrorCode,
+  refreshAccessTokenOnce,
+  handleSessionExpired,
+} from './authRetry'
 
 export function request(options) {
   return new Promise((resolve, reject) => {
@@ -52,13 +40,10 @@ function handleResponse(res, options, resolve, reject, canRetry) {
   const url = options.url || ''
   const isAuthEndpoint = /\/auth\/(login|register|wechat-login|send-code|refresh-token)/.test(url)
   const token = getAccessToken()
-  const isAuthError = body.code === 40100 || body.code === 40101
+  const isAuthError = isAuthErrorCode(body.code)
   // 登录/注册接口的 401xx 是业务失败（如账号密码错误），不要当成会话过期
   if (!isAuthEndpoint && canRetry && isAuthError && token && getRefreshToken()) {
-    if (!refreshing) {
-      refreshing = refreshTokenRequest().finally(() => { refreshing = null })
-    }
-    refreshing
+    refreshAccessTokenOnce()
       .then(() => request(options).then(resolve).catch(reject))
       .catch(() => handleSessionExpired(reject))
     return

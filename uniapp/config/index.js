@@ -23,9 +23,14 @@ const isLocal =
 const protocol = isLocal ? 'http' : 'https'
 const wsProtocol = isLocal ? 'ws' : 'wss'
 
+const webPort = import.meta.env.VITE_WEB_PORT || '5175'
+const webHost = host.replace(/:\d+$/, '') || host
+
 export default {
   API_BASE: `${protocol}://${host}/api/v1`,
   WS_BASE: `${wsProtocol}://${host}/ws`,
+  /** PC Web 端地址（简历创作、导出 PDF 等） */
+  WEB_BASE: useProd && !apiHost ? `${protocol}://${PROD_HOST}` : `${protocol}://${webHost}:${webPort}`,
   /** 商品列表每页条数（触底懒加载） */
   PAGE_SIZE: 30,
 }

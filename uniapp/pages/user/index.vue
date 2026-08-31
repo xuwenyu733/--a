@@ -71,7 +71,7 @@
         </view>
         <view class="menu-item" @tap="goResume">
           <image class="menu-icon-img" :src="menuIcon('ai-resume')" mode="aspectFit" />
-          <text class="menu-label">AI 简历创作</text>
+          <text class="menu-label">我的简历</text>
           <text class="menu-arrow">›</text>
         </view>
         <view class="menu-item" @tap="goNotifications">

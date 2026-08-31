@@ -12,5 +12,6 @@ uploads/*
 !backend/uploads/.gitkeep
 *.log
 logs/
+backup/
 backend/.cache/
 .DS_Store

@@ -278,7 +278,7 @@ async function goDelivery() {
   openPageSafe('/pages/delivery/index')
 }
 async function goResume() {
-  if (!(await promptLogin({ content: '登录后即可使用 AI 简历' }))) return
+  if (!(await promptLogin({ content: '登录后即可查看我的简历' }))) return
   openPageSafe('/pages/resume/build')
 }
 async function onPublishEntry() {
