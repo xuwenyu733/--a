@@ -2,7 +2,7 @@ import * as paymentService from '../services/paymentService.js'
 import { ErrorCodes, fail, success } from '../utils/response.js'
 
 export function config(req, res) {
-  return success(res, paymentService.getPaymentConfig())
+  return success(res, paymentService.getPaymentConfig(req.user))
 }
 
 export async function createForOrder(req, res, next) {
@@ -22,6 +22,7 @@ export async function createForOrder(req, res, next) {
 export async function activeForOrder(req, res, next) {
   try {
     const { order, payment } = await paymentService.getActivePayment(req.params.orderId, req.user._id)
+    const payCfg = paymentService.getPaymentConfig(req.user)
     return success(res, {
       order: {
         _id: order._id,
@@ -39,9 +40,16 @@ export async function activeForOrder(req, res, next) {
             qrContent: payment.qrContent,
             expiredAt: payment.expiredAt,
             provider: payment.provider,
+            payParams: payment.payParams || null,
           }
         : null,
-      sandbox: paymentService.getPaymentConfig().sandboxSimulate,
+      sandbox: payCfg.sandboxSimulate,
+      mode: payCfg.mode,
+      clientAction: payment?.payParams
+        ? 'requestPayment'
+        : payCfg.sandboxSimulate
+          ? 'simulate'
+          : null,
     })
   } catch (err) {
     if (err.code) return fail(res, err.code, err.message, err.code === 40400 ? 404 : 403)

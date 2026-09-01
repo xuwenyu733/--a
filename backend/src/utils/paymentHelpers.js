@@ -51,7 +51,10 @@ export function validatePaymentParticipant({ buyerId, sellerId, userId }) {
   return { ok: true }
 }
 
-export function formatPaymentResponse(tx, order, { sandbox = false } = {}) {
+export function formatPaymentResponse(tx, order, { sandbox = false, payParams = null, clientAction = null } = {}) {
+  const action =
+    clientAction ||
+    (payParams ? 'requestPayment' : sandbox ? 'simulate' : null)
   return {
     payment: {
       paymentNo: tx.paymentNo,
@@ -62,6 +65,9 @@ export function formatPaymentResponse(tx, order, { sandbox = false } = {}) {
       qrContent: tx.qrContent,
       expiredAt: tx.expiredAt,
       paidAt: tx.paidAt,
+      provider: tx.provider,
+      /** 正式小程序支付调起参数；沙箱为 null */
+      payParams: payParams || tx.payParams || null,
     },
     order: order
       ? {
@@ -71,5 +77,8 @@ export function formatPaymentResponse(tx, order, { sandbox = false } = {}) {
         }
       : null,
     sandbox,
+    mode: sandbox ? 'sandbox' : 'live',
+    /** simulate | requestPayment */
+    clientAction: action,
   }
 }

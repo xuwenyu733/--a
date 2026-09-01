@@ -22,6 +22,8 @@ const paymentTransactionSchema = new mongoose.Schema(
     prepayId: { type: String, default: '' },
     payUrl: { type: String, default: '' },
     qrContent: { type: String, default: '' },
+    /** 小程序 requestPayment 参数（live 下单后缓存，便于重新调起） */
+    payParams: { type: mongoose.Schema.Types.Mixed, default: null },
     transactionId: { type: String, default: '' },
     paidAt: { type: Date, default: null },
     expiredAt: { type: Date, required: true },

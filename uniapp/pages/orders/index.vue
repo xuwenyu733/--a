@@ -66,13 +66,32 @@
           <text :class="{ active: payMode === 'manual' }" @tap="payMode = 'manual'">线下转账</text>
         </view>
         <template v-if="payMode === 'online'">
-          <radio-group @change="onChannel">
+          <text v-if="payTip" class="pay-tip">{{ payTip }}</text>
+          <text v-if="!payConfig.domainReady" class="pay-tip muted">
+            正式支付回调域名尚未配置（当前可用沙箱联调）。买好域名和 HTTPS 后填写 PAYMENT_NOTIFY_BASE_URL。
+          </text>
+          <radio-group v-if="channels.length" @change="onChannel">
             <label v-for="c in channels" :key="c.id" class="channel">
               <radio :value="c.id" :checked="channel === c.id" /> {{ c.name }}
             </label>
           </radio-group>
-          <button v-if="!activePayment" type="primary" @tap="createPay">发起支付</button>
-          <button v-else type="primary" @tap="simulatePay">模拟支付成功</button>
+          <view v-if="activePayment" class="pay-meta muted">
+            支付单 {{ activePayment.paymentNo }} · ¥{{ activePayment.amount }}
+          </view>
+          <button v-if="!activePayment" type="primary" :loading="paying" @tap="createPay">发起支付</button>
+          <button
+            v-else-if="payConfig.sandboxSimulate"
+            type="primary"
+            :loading="paying"
+            @tap="simulatePay"
+          >模拟支付成功</button>
+          <button
+            v-else-if="activePayment.payParams"
+            type="primary"
+            :loading="paying"
+            @tap="invokeWechatPay"
+          >继续微信支付</button>
+          <button v-else type="primary" :loading="paying" @tap="createPay">重新发起</button>
         </template>
         <template v-else>
           <image v-if="sellerQr" class="pay-qr" :src="sellerQr" mode="aspectFit" @tap="previewQr" />
@@ -96,6 +115,7 @@ import * as paymentApi from '@/api/payment'
 import { ensureLogin } from '@/utils/auth'
 import { getFileUrl } from '@/utils/fileUrl'
 import { ORDER_STATUS, PAYMENT_STATUS, formatTime } from '@/utils/format'
+import { requestWechatPayment } from '@/utils/pay'
 import LoadState from '@/components/LoadState.vue'
 import ListCardSkeleton from '@/components/ListCardSkeleton.vue'
 
@@ -110,7 +130,16 @@ const payMode = ref('online')
 const channels = ref([])
 const channel = ref('wechat')
 const activePayment = ref(null)
+const paying = ref(false)
+const payConfig = ref({
+  enabled: false,
+  mode: 'sandbox',
+  sandboxSimulate: true,
+  domainReady: false,
+  tip: '',
+})
 
+const payTip = computed(() => payConfig.value.tip || '')
 const sellerQr = computed(() => {
   const url = payOrder.value?.sellerId?.paymentQrUrl
   return url ? getFileUrl(url) : ''
@@ -271,10 +300,17 @@ async function openPay(order) {
   activePayment.value = null
   try {
     const cfg = await paymentApi.getConfig()
+    payConfig.value = {
+      enabled: !!cfg.enabled,
+      mode: cfg.mode || 'sandbox',
+      sandboxSimulate: !!cfg.sandboxSimulate,
+      domainReady: !!cfg.domainReady,
+      tip: cfg.tip || '',
+    }
     payOrder.value = order
     payMode.value = cfg.enabled ? 'online' : 'manual'
-    channels.value = cfg.channels || []
-    channel.value = cfg.channels?.[0]?.id || 'wechat'
+    channels.value = (cfg.channels || []).filter((c) => c.available !== false)
+    channel.value = channels.value[0]?.id || 'wechat'
     if (cfg.enabled) {
       const active = await paymentApi.getActive(order._id)
       activePayment.value = active.payment?.status === 'pending' ? active.payment : null
@@ -291,18 +327,53 @@ async function openPay(order) {
 function onChannel(e) { channel.value = e.detail.value }
 
 async function createPay() {
+  if (paying.value) return
+  paying.value = true
   try {
     const res = await paymentApi.create(payOrder.value._id, { channel: channel.value })
-    activePayment.value = res.payment
-    uni.showToast({ title: '支付单已创建', icon: 'none' })
+    activePayment.value = {
+      ...res.payment,
+      payParams: res.payment?.payParams || null,
+    }
+    if (res.clientAction === 'requestPayment' && res.payment?.payParams) {
+      await requestWechatPayment(res.payment.payParams)
+      await waitUntilPaid(res.payment.paymentNo)
+      uni.showToast({ title: '支付成功', icon: 'success' })
+      closePay()
+      loadOrders()
+      return
+    }
+    uni.showToast({
+      title: res.sandbox ? '支付单已创建，请点模拟支付' : '支付单已创建',
+      icon: 'none',
+    })
   } catch (e) {
     uni.showToast({ title: e.message || '失败', icon: 'none' })
+  } finally {
+    paying.value = false
+  }
+}
+
+async function invokeWechatPay() {
+  if (!activePayment.value?.payParams || paying.value) return
+  paying.value = true
+  try {
+    await requestWechatPayment(activePayment.value.payParams)
+    await waitUntilPaid(activePayment.value.paymentNo)
+    uni.showToast({ title: '支付成功', icon: 'success' })
+    closePay()
+    loadOrders()
+  } catch (e) {
+    uni.showToast({ title: e.message || '支付失败', icon: 'none' })
+  } finally {
+    paying.value = false
   }
 }
 
 async function simulatePay() {
   const no = activePayment.value?.paymentNo
-  if (!no) return
+  if (!no || paying.value) return
+  paying.value = true
   try {
     await paymentApi.simulate(no)
     uni.showToast({ title: '支付成功', icon: 'success' })
@@ -310,13 +381,27 @@ async function simulatePay() {
     loadOrders()
   } catch (e) {
     uni.showToast({ title: e.message || '失败', icon: 'none' })
+  } finally {
+    paying.value = false
   }
+}
+
+async function waitUntilPaid(paymentNo, tries = 8) {
+  for (let i = 0; i < tries; i += 1) {
+    try {
+      const tx = await paymentApi.getPayment(paymentNo)
+      if (tx?.status === 'paid') return true
+    } catch { /* ignore */ }
+    await new Promise((r) => setTimeout(r, 800))
+  }
+  return false
 }
 
 function closePay() {
   payVisible.value = false
   payOrder.value = null
   activePayment.value = null
+  paying.value = false
 }
 </script>
 
@@ -347,5 +432,20 @@ function closePay() {
 .pay-tabs .active { color: #409eff; font-weight: 600; border-bottom: 4rpx solid #409eff; padding-bottom: 4rpx; }
 .channel { display: block; padding: 16rpx 0; }
 .manual-tip { display: block; margin: 16rpx 0 24rpx; line-height: 1.5; }
+.pay-tip {
+  display: block;
+  margin: 8rpx 0 16rpx;
+  padding: 16rpx;
+  background: #ecf5ff;
+  color: #409eff;
+  border-radius: 12rpx;
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+.pay-tip.muted {
+  background: #f4f4f5;
+  color: #909399;
+}
+.pay-meta { display: block; margin: 8rpx 0 16rpx; font-size: 22rpx; word-break: break-all; }
 .pay-panel button { margin-top: 16rpx; }
 </style>

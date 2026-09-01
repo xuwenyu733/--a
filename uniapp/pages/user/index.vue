@@ -48,7 +48,9 @@
         <view class="quick-item" @tap="goNotifications">
           <view class="quick-icon-wrap">
             <image class="quick-icon-img" :src="mineIcon('notifications')" mode="aspectFit" />
-            <text v-if="unreadCount" class="quick-badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</text>
+            <view v-if="unreadCount > 0" class="quick-badge">
+              <text class="quick-badge-text">{{ unreadCount > 99 ? '99+' : unreadCount }}</text>
+            </view>
           </view>
           <text class="quick-label">通知</text>
         </view>
@@ -78,7 +80,7 @@
           <image class="menu-icon-img" :src="menuIcon('notifications')" mode="aspectFit" />
           <text class="menu-label">通知中心</text>
           <view class="menu-right">
-            <text v-if="unreadCount" class="menu-badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</text>
+            <text v-if="unreadCount > 0" class="menu-badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</text>
             <text class="menu-arrow">›</text>
           </view>
         </view>
@@ -587,18 +589,26 @@ function logout() {
 
 .quick-badge {
   position: absolute;
-  top: -6rpx;
-  right: -14rpx;
-  background: #f56c6c;
-  color: #fff;
-  font-size: 18rpx;
+  top: -4rpx;
+  right: -10rpx;
   min-width: 28rpx;
   height: 28rpx;
-  line-height: 28rpx;
-  text-align: center;
+  padding: 0 8rpx;
+  background: #f56c6c;
   border-radius: 14rpx;
-  padding: 0 6rpx;
+  border: 2rpx solid #fff;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   z-index: 1;
+}
+
+.quick-badge-text {
+  color: #fff;
+  font-size: 18rpx;
+  line-height: 1;
+  font-weight: 600;
 }
 
 .quick-label {

@@ -13,6 +13,12 @@
       <el-tab-pane v-if="paymentConfig.enabled" label="在线支付" name="online">
         <p v-if="paymentConfig.mode === 'sandbox'" class="sandbox-tip">
           当前为<strong>沙箱模式</strong>，可模拟微信/支付宝付款，无需真实商户号。
+          个体户与域名就绪后，将 <code>PAYMENT_MODE</code> 改为 live 并填写商户配置。
+        </p>
+        <p v-if="paymentConfig.tip" class="sandbox-tip muted-tip">{{ paymentConfig.tip }}</p>
+        <p v-if="paymentConfig.enabled && !paymentConfig.domainReady" class="sandbox-tip muted-tip">
+          正式回调域名未就绪（可先沙箱联调）。买好域名 HTTPS 后配置
+          <code>PAYMENT_NOTIFY_BASE_URL</code>。
         </p>
         <el-radio-group v-model="channel" class="channel-group">
           <el-radio
@@ -188,6 +194,12 @@ defineExpose({ marking })
   color: var(--el-color-warning);
   margin: 0 0 12px;
   line-height: 1.5;
+}
+.sandbox-tip.muted-tip {
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color-light);
+  padding: 8px 10px;
+  border-radius: 6px;
 }
 .channel-group { display: flex; flex-direction: column; gap: 8px; width: 100%; }
 .channel-group :deep(.el-radio) { margin-right: 0; width: 100%; }

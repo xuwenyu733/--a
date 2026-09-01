@@ -8,7 +8,8 @@ import {
 } from '../constants/payment.js'
 import { activeOrderFilter } from '../utils/orderQuery.js'
 import { notifyUser } from './notificationService.js'
-import { generatePaymentNo, getPaymentGateway } from './payment/paymentGateway.js'
+import { generatePaymentNo, getPaymentGateway, isNotifyDomainReady } from './payment/paymentGateway.js'
+import User from '../models/User.js'
 import {
   validateCreateOnlinePayment,
   validateSimulateSandboxPayment,
@@ -24,8 +25,8 @@ function populateOrderQuery(q) {
   ])
 }
 
-export function getPaymentConfig() {
-  const { payment } = config
+export function getPaymentConfig(user) {
+  const { payment, publicBaseUrl } = config
   const channels = []
   if (payment.enabled) {
     if (payment.mode === 'sandbox' || payment.wechat.enabled) {
@@ -43,12 +44,29 @@ export function getPaymentConfig() {
       })
     }
   }
+  const notifyBase = payment.notifyBaseUrl
+  const domainReady = isNotifyDomainReady(notifyBase)
   return {
     enabled: payment.enabled && channels.some((c) => c.available),
     mode: payment.mode,
     channels,
     sandboxSimulate: payment.mode === 'sandbox',
     expireMinutes: payment.expireMinutes,
+    /** 当前回调根地址（域名未买时可能是 localhost） */
+    notifyBaseUrl: notifyBase,
+    notifyWechatUrl: `${notifyBase}/api/v1/payments/notify/wechat`,
+    notifyAlipayUrl: `${notifyBase}/api/v1/payments/notify/alipay`,
+    /** 是否已配置可用的公网 HTTPS 域名（正式支付前置条件） */
+    domainReady,
+    publicBaseUrl: publicBaseUrl || '',
+    wechatMerchantReady: Boolean(payment.wechat.enabled),
+    openidReady: Boolean(user?.wechatOpenId),
+    tip:
+      payment.mode === 'sandbox'
+        ? '当前为沙箱模式：可点「模拟支付成功」联调。个体户与域名就绪后改为 live 并填写商户号。'
+        : domainReady
+          ? '正式支付模式'
+          : '正式支付需要公网 HTTPS 回调域名，请配置 PAYMENT_NOTIFY_BASE_URL',
   }
 }
 
@@ -121,7 +139,10 @@ export async function createOnlinePayment(orderId, buyerId, { channel }) {
   })
   if (existing) {
     if (existing.channel === channel) {
-      return formatPaymentResponse(existing, order, { sandbox: config.payment.mode === 'sandbox' })
+      return formatPaymentResponse(existing, order, {
+        sandbox: config.payment.mode === 'sandbox',
+        payParams: existing.payParams || null,
+      })
     }
     existing.status = PAYMENT_TX_STATUS.CANCELLED
     await existing.save()
@@ -129,12 +150,26 @@ export async function createOnlinePayment(orderId, buyerId, { channel }) {
 
   const paymentNo = generatePaymentNo()
   const expiredAt = new Date(Date.now() + config.payment.expireMinutes * 60 * 1000)
+  const buyer = await User.findById(buyerId).select('wechatOpenId')
+  const openid = buyer?.wechatOpenId || ''
+
+  if (
+    channel === PAYMENT_CHANNEL.WECHAT &&
+    config.payment.mode === 'live' &&
+    !openid
+  ) {
+    const err = new Error('请先使用微信登录后再发起微信支付')
+    err.code = 40000
+    throw err
+  }
+
   const gateway = getPaymentGateway(channel)
   const prepay = await gateway.createPrepay({
     paymentNo,
     amount: order.price,
     title: order.productId?.title || '校园二手商品',
     expireAt: expiredAt,
+    openid,
   })
 
   const tx = await PaymentTransaction.create({
@@ -149,6 +184,7 @@ export async function createOnlinePayment(orderId, buyerId, { channel }) {
     prepayId: prepay.prepayId,
     payUrl: prepay.payUrl,
     qrContent: prepay.qrContent,
+    payParams: prepay.payParams || null,
     expiredAt,
   })
 
@@ -156,7 +192,11 @@ export async function createOnlinePayment(orderId, buyerId, { channel }) {
   order.latestPaymentNo = paymentNo
   await order.save()
 
-  return formatPaymentResponse(tx, order, { sandbox: config.payment.mode === 'sandbox' })
+  return formatPaymentResponse(tx, order, {
+    sandbox: config.payment.mode === 'sandbox',
+    payParams: prepay.payParams || null,
+    clientAction: prepay.clientAction || null,
+  })
 }
 
 export async function getPaymentByNo(paymentNo, userId) {

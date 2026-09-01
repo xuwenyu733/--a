@@ -80,19 +80,25 @@ export default {
       sandbox: !process.env.WECHAT_MINI_APP_SECRET,
     },
   },
+  /** 对外访问根地址（上传文件 URL 等）；域名未买时可留空 */
+  publicBaseUrl: (process.env.PUBLIC_BASE_URL || '').replace(/\/$/, ''),
   payment: {
     enabled: process.env.PAYMENT_ENABLED !== 'false',
     mode: process.env.PAYMENT_MODE || 'sandbox',
     expireMinutes: Number(process.env.PAYMENT_EXPIRE_MINUTES) || 30,
+    /** 支付回调根地址；未配置域名时回退 localhost（仅沙箱开发） */
     notifyBaseUrl: (
       process.env.PAYMENT_NOTIFY_BASE_URL ||
-      `http://localhost:${process.env.PORT || 3000}`
+      process.env.PUBLIC_BASE_URL ||
+      `http://localhost:${process.env.PORT || 3001}`
     ).replace(/\/$/, ''),
     wechat: {
       enabled: Boolean(process.env.WECHAT_PAY_MCH_ID && process.env.WECHAT_PAY_API_KEY),
-      appId: process.env.WECHAT_PAY_APP_ID || '',
+      appId: process.env.WECHAT_PAY_APP_ID || process.env.WECHAT_MINI_APP_ID || '',
       mchId: process.env.WECHAT_PAY_MCH_ID || '',
       apiKey: process.env.WECHAT_PAY_API_KEY || '',
+      certPath: process.env.WECHAT_PAY_CERT_PATH || '',
+      keyPath: process.env.WECHAT_PAY_KEY_PATH || '',
     },
     alipay: {
       enabled: Boolean(process.env.ALIPAY_APP_ID && process.env.ALIPAY_PRIVATE_KEY),
