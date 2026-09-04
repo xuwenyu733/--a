@@ -1,12 +1,12 @@
 {
   "name": "校园二手",
-  "appid": "wx31957d00effd6c0c",
+  "appid": "",
   "description": "校园生活服务平台 · 二手交易",
   "versionName": "1.0.0",
   "versionCode": "100",
   "transformPx": false,
   "mp-weixin": {
-    "appid": "wx31957d00effd6c0c",
+    "appid": "touristappid",
     "libVersion": "3.8.12",
     "setting": {
       "urlCheck": false,
