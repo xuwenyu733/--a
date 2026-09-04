@@ -34,6 +34,7 @@ export async function seedDeliveryFixture(options = {}) {
     role: ROLES.STUDENT,
     regionId: region._id,
     studentVerified: true,
+    courierVerified: !!options.courierSameAsPoster,
     wechatOpenId: `wx_poster_${suffix}`,
   })
   const courier = await User.create({
@@ -64,6 +65,16 @@ export async function seedDeliveryFixture(options = {}) {
     allowedZoneIds: [zone._id],
     status: 'active',
   })
+  if (options.courierSameAsPoster) {
+    await CourierProfile.create({
+      userId: poster._id,
+      regionId: region._id,
+      realName: '发单骑手',
+      contactPhone: posterPhone,
+      allowedZoneIds: [zone._id],
+      status: 'active',
+    })
+  }
 
   const sampleOrder = {
     zoneId: zone._id.toString(),

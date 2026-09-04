@@ -29,20 +29,29 @@
 
     <el-empty v-if="!loading && !error && !orders.length && auth.user?.courierVerified" description="暂无待接订单" />
 
-    <div v-for="item in orders" :key="item._id" class="order-card">
+    <div v-for="item in orders" :key="item._id" class="order-card" :class="{ 'order-card--own': item.isOwnOrder }">
       <div class="order-card__top">
         <el-tag size="small">{{ typeLabel(item.type) }}</el-tag>
+        <el-tag v-if="item.isOwnOrder" type="info" size="small">我发布的</el-tag>
         <el-tag type="warning" size="small">¥{{ item.fee }}</el-tag>
         <span class="zone">{{ item.zoneId?.name }}</span>
       </div>
       <h4>{{ item.title || typeLabel(item.type) }}</h4>
       <p><strong>取：</strong>{{ item.pickupAddress }}</p>
       <p><strong>送：</strong>{{ item.dropoffAddress }}</p>
-      <p v-if="item.contactPhone"><strong>联系：</strong>{{ item.contactPhone }}</p>
+      <p v-if="item.isOwnOrder" class="own-hint">这是您发布的委托，无法自行接单或联系</p>
+      <p v-else-if="item.contactPhone"><strong>联系：</strong>{{ item.contactPhone }}</p>
       <p v-if="item.description" class="desc">{{ item.description }}</p>
       <div class="order-card__foot">
         <span class="time">{{ formatTime(item.createdAt) }}</span>
-        <el-button type="primary" size="small" :loading="acceptingId === item._id" @click="accept(item)">
+        <el-button v-if="item.isOwnOrder" size="small" disabled>不可接单</el-button>
+        <el-button
+          v-else
+          type="primary"
+          size="small"
+          :loading="acceptingId === item._id"
+          @click="accept(item)"
+        >
           接单
         </el-button>
       </div>
@@ -106,6 +115,10 @@ onMounted(async () => {
 })
 
 async function accept(item) {
+  if (item.isOwnOrder) {
+    ElMessage.warning('不能接自己发布的订单')
+    return
+  }
   acceptingId.value = item._id
   try {
     await deliveryApi.acceptDeliveryOrder(item._id)
@@ -137,6 +150,14 @@ async function accept(item) {
   border-radius: 10px;
   padding: 14px;
   margin-bottom: 12px;
+}
+.order-card--own {
+  background: var(--el-fill-color-light);
+  border-color: var(--el-border-color);
+}
+.own-hint {
+  color: var(--app-muted);
+  font-size: 13px;
 }
 .order-card__top {
   display: flex;

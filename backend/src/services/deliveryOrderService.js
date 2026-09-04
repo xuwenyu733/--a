@@ -18,6 +18,25 @@ function populateQuery(q) {
     .populate('courierId', 'nickname phone avatar')
 }
 
+function posterIdOf(order) {
+  const poster = order.posterId
+  return (poster?._id || poster)?.toString()
+}
+
+function isOwnPosterOrder(order, userId) {
+  return posterIdOf(order) === userId.toString()
+}
+
+function withOwnOrderFlag(order, userId) {
+  const obj = order.toObject ? order.toObject() : { ...order }
+  const isOwnOrder = isOwnPosterOrder(order, userId)
+  return {
+    ...obj,
+    isOwnOrder,
+    ...(isOwnOrder ? { contactPhone: '' } : {}),
+  }
+}
+
 export async function createOrder(user, payload) {
   if (!user.regionId) {
     const err = new Error('请先完善所属校区')
@@ -90,10 +109,11 @@ export async function listOpenOrders(user, { zoneId, type, page = 1, pageSize = 
   }
 
   const skip = (Number(page) - 1) * Number(pageSize)
-  const [list, total] = await Promise.all([
+  const [rawList, total] = await Promise.all([
     populateQuery(DeliveryOrder.find(filter).sort({ createdAt: -1 }).skip(skip).limit(Number(pageSize))),
     DeliveryOrder.countDocuments(filter),
   ])
+  const list = rawList.map((order) => withOwnOrderFlag(order, user._id))
   return { list, pagination: paginationMeta(Number(page), Number(pageSize), total) }
 }
 
@@ -103,12 +123,23 @@ export async function acceptOrder(courier, orderId) {
     err.code = 40301
     throw err
   }
-  const order = await DeliveryOrder.findOneAndUpdate(
-    {
-      _id: orderId,
-      status: DELIVERY_ORDER_STATUS.OPEN,
-      regionId: courier.regionId,
-    },
+  const existing = await DeliveryOrder.findOne({
+    _id: orderId,
+    status: DELIVERY_ORDER_STATUS.OPEN,
+    regionId: courier.regionId,
+  })
+  if (!existing) {
+    const err = new Error('订单不存在或已被接单')
+    err.code = 40900
+    throw err
+  }
+  if (isOwnPosterOrder(existing, courier._id)) {
+    const err = new Error('不能接自己发布的订单')
+    err.code = 40301
+    throw err
+  }
+  const order = await DeliveryOrder.findByIdAndUpdate(
+    existing._id,
     {
       $set: {
         status: DELIVERY_ORDER_STATUS.ACCEPTED,
@@ -118,11 +149,6 @@ export async function acceptOrder(courier, orderId) {
     },
     { new: true }
   )
-  if (!order) {
-    const err = new Error('订单不存在或已被接单')
-    err.code = 40900
-    throw err
-  }
   await notify(order.posterId, {
     type: 'delivery',
     title: '跑腿订单已被接单',

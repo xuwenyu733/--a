@@ -24,22 +24,35 @@
         empty-text="暂无待接订单，稍后再来看看"
         @retry="load"
       />
-      <view v-for="item in orders" :key="item._id" class="card order-card">
+      <view v-for="item in orders" :key="item._id" class="card order-card" :class="{ 'order-card--own': item.isOwnOrder }">
         <view class="head">
           <text class="tag">{{ typeLabel(item.type) }}</text>
+          <text v-if="item.isOwnOrder" class="own-tag">我发布的</text>
           <text class="price">¥{{ item.fee }}</text>
           <text class="muted zone">{{ item.zoneId?.name }}</text>
         </view>
         <text class="title">{{ item.title || typeLabel(item.type) }}</text>
         <text class="line">取：{{ item.pickupAddress }}</text>
         <text class="line">送：{{ item.dropoffAddress }}</text>
-        <text v-if="item.contactPhone" class="line">联系发布人：{{ item.contactPhone }}</text>
+        <text v-if="item.isOwnOrder" class="line own-hint">这是您发布的委托，无法自行接单</text>
+        <text v-else-if="item.contactPhone" class="line">联系发布人：{{ item.contactPhone }}</text>
         <text v-if="item.description" class="desc muted">{{ item.description }}</text>
         <view class="foot">
           <text class="muted">{{ formatTime(item.createdAt) }}</text>
           <view class="foot-actions">
-            <button v-if="item.contactPhone" size="mini" @tap="callPhone(item.contactPhone)">致电</button>
-            <button size="mini" type="primary" :loading="acceptingId === item._id" @tap="confirmAccept(item)">接单</button>
+            <button v-if="!item.isOwnOrder && item.contactPhone" size="mini" @tap="callPhone(item.contactPhone)">致电</button>
+            <button
+              v-if="item.isOwnOrder"
+              size="mini"
+              disabled
+            >不可接单</button>
+            <button
+              v-else
+              size="mini"
+              type="primary"
+              :loading="acceptingId === item._id"
+              @tap="confirmAccept(item)"
+            >接单</button>
           </view>
         </view>
       </view>
@@ -126,6 +139,10 @@ async function load() {
 }
 
 function confirmAccept(item) {
+  if (item.isOwnOrder) {
+    uni.showToast({ title: '不能接自己发布的订单', icon: 'none' })
+    return
+  }
   uni.showModal({
     title: '确认接单',
     content: `酬劳 ¥${item.fee}，确认接取该订单？`,
@@ -165,6 +182,9 @@ function goVerify() {
 .tip-desc { font-size: 26rpx; }
 .filters { display: flex; gap: 12rpx; flex-wrap: wrap; align-items: center; margin-bottom: 16rpx; }
 .filter-btn { background: #f5f7fa; padding: 12rpx 20rpx; border-radius: 8rpx; font-size: 26rpx; }
+.order-card--own { background: #f5f7fa; border: 1rpx solid #e4e7ed; }
+.own-tag { background: #909399; color: #fff; font-size: 22rpx; padding: 4rpx 12rpx; border-radius: 6rpx; }
+.own-hint { color: #909399; font-size: 24rpx; }
 .order-card .head { display: flex; gap: 12rpx; align-items: center; margin-bottom: 12rpx; flex-wrap: wrap; }
 .order-card .title { display: block; font-weight: 600; font-size: 30rpx; margin-bottom: 8rpx; }
 .line { display: block; font-size: 26rpx; margin-bottom: 6rpx; }

@@ -100,6 +100,31 @@ describe('delivery API (integration)', () => {
     expect(res.body.code).toBe(40301)
   })
 
+  it('marks own orders in open hall and rejects self-accept', async () => {
+    const { poster, sampleOrder } = await seedDeliveryFixture({ suffix: 'dz5', courierSameAsPoster: true })
+
+    const createRes = await request(app)
+      .post('/api/v1/delivery/orders')
+      .set(authHeader(poster))
+      .send(sampleOrder)
+    const orderId = createRes.body.data._id
+
+    const openRes = await request(app)
+      .get('/api/v1/delivery/orders/open')
+      .set(authHeader(poster))
+    expect(openRes.status).toBe(200)
+    const own = openRes.body.data.list.find((o) => o._id === orderId)
+    expect(own).toBeTruthy()
+    expect(own.isOwnOrder).toBe(true)
+    expect(own.contactPhone).toBe('')
+
+    const acceptRes = await request(app)
+      .patch(`/api/v1/delivery/orders/${orderId}/accept`)
+      .set(authHeader(poster))
+    expect(acceptRes.status).toBe(403)
+    expect(acceptRes.body.message).toMatch(/自己发布/)
+  })
+
   it('POST /api/v1/delivery/orders requires auth', async () => {
     const res = await request(app).post('/api/v1/delivery/orders').send({})
     expect(res.status).toBe(401)

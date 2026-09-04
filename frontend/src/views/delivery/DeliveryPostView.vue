@@ -28,6 +28,47 @@
     />
 
     <el-form v-else :model="form" label-width="100px" style="max-width:560px">
+      <el-form-item label="快捷预设">
+        <div class="presets-row">
+          <div
+            v-for="item in presets"
+            :key="item.id"
+            class="preset-card"
+            @click="applyPreset(item)"
+          >
+            <span class="preset-name">{{ item.name }}</span>
+            <span class="preset-hint">点击填写</span>
+            <el-button
+              class="preset-edit"
+              link
+              type="primary"
+              size="small"
+              @click.stop="openRename(item)"
+            >
+              重命名
+            </el-button>
+            <el-button
+              class="preset-delete"
+              link
+              type="danger"
+              size="small"
+              @click.stop="deletePreset(item)"
+            >
+              删除
+            </el-button>
+          </div>
+          <div
+            v-if="presets.length < MAX_PRESETS"
+            class="preset-card preset-add"
+            @click="openAddPreset"
+          >
+            <span class="preset-add-icon">+</span>
+            <span class="preset-hint">添加预设</span>
+          </div>
+        </div>
+        <p class="presets-tip">将当前表单保存为预设，最多 {{ MAX_PRESETS }} 个；联系电话不会被保存</p>
+      </el-form-item>
+
       <el-form-item label="类型" required>
         <el-radio-group v-model="form.type">
           <el-radio v-for="t in DELIVERY_ORDER_TYPES" :key="t.value" :value="t.value">{{ t.label }}</el-radio>
@@ -67,17 +108,28 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import * as deliveryApi from '@/api/delivery'
 import { DELIVERY_ORDER_TYPES } from '@/constants/delivery'
+import {
+  MAX_DELIVERY_PRESETS,
+  applyPresetToForm,
+  buildPreset,
+  canSaveAsPreset,
+  loadDeliveryPresets,
+  renamePreset,
+  saveDeliveryPresets,
+} from '@/utils/deliveryPresets'
 
+const MAX_PRESETS = MAX_DELIVERY_PRESETS
 const auth = useAuthStore()
 const router = useRouter()
 const loading = ref(false)
 const zonesLoaded = ref(false)
 const zonesError = ref('')
 const zones = ref([])
+const presets = ref([])
 const form = ref({
   type: 'food',
   zoneId: '',
@@ -90,6 +142,72 @@ const form = ref({
   remark: '',
 })
 
+function userId() {
+  return auth.user?._id || ''
+}
+
+function reloadPresets() {
+  presets.value = loadDeliveryPresets(userId())
+}
+
+function persistPresets(next) {
+  presets.value = saveDeliveryPresets(userId(), next)
+}
+
+function applyPreset(item) {
+  form.value = applyPresetToForm(item, form.value)
+  if (item.zoneId && zones.value.some((z) => z._id === item.zoneId)) {
+    form.value.zoneId = item.zoneId
+  }
+  ElMessage.success('已填入预设')
+}
+
+async function openAddPreset() {
+  if (!canSaveAsPreset(form.value)) {
+    ElMessage.warning('请先填写取件和送达地址')
+    return
+  }
+  try {
+    const { value } = await ElMessageBox.prompt('给预设起个名字', '添加预设', {
+      confirmButtonText: '保存',
+      cancelButtonText: '取消',
+      inputValue: form.value.title?.trim() || '',
+      inputPlaceholder: '如：取外卖、取快递',
+      inputValidator: (v) => !!(v && v.trim()) || '请填写预设名称',
+    })
+    const preset = buildPreset(value, form.value)
+    persistPresets([...presets.value, preset])
+    ElMessage.success('预设已保存')
+  } catch {
+    /* cancelled */
+  }
+}
+
+async function openRename(item) {
+  try {
+    const { value } = await ElMessageBox.prompt('修改预设名称', '重命名', {
+      confirmButtonText: '保存',
+      cancelButtonText: '取消',
+      inputValue: item.name,
+      inputValidator: (v) => !!(v && v.trim()) || '请填写预设名称',
+    })
+    persistPresets(renamePreset(presets.value, item.id, value))
+    ElMessage.success('已重命名')
+  } catch {
+    /* cancelled */
+  }
+}
+
+async function deletePreset(item) {
+  try {
+    await ElMessageBox.confirm(`确定删除「${item.name}」？`, '删除预设', { type: 'warning' })
+    persistPresets(presets.value.filter((p) => p.id !== item.id))
+    ElMessage.success('已删除')
+  } catch {
+    /* cancelled */
+  }
+}
+
 async function loadZones() {
   const regionId = auth.user?.regionId?._id || auth.user?.regionId
   if (!regionId) {
@@ -100,7 +218,7 @@ async function loadZones() {
   zonesError.value = ''
   try {
     zones.value = await deliveryApi.getDeliveryZones(regionId)
-    if (zones.value.length) form.value.zoneId = zones.value[0]._id
+    if (zones.value.length && !form.value.zoneId) form.value.zoneId = zones.value[0]._id
   } catch (e) {
     zonesError.value = e.message || '加载配送区域失败'
   } finally {
@@ -108,7 +226,10 @@ async function loadZones() {
   }
 }
 
-onMounted(loadZones)
+onMounted(() => {
+  reloadPresets()
+  loadZones()
+})
 
 async function submit() {
   if (!form.value.zoneId || !form.value.pickupAddress?.trim() || !form.value.dropoffAddress?.trim()) {
@@ -134,5 +255,65 @@ async function submit() {
 }
 .zone-alert {
   margin-bottom: 16px;
+}
+.presets-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.preset-card {
+  width: 120px;
+  height: 88px;
+  box-sizing: border-box;
+  border: 1px solid var(--el-border-color);
+  border-radius: 10px;
+  background: var(--el-color-primary-light-9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  position: relative;
+  padding: 8px;
+}
+.preset-add {
+  border-style: dashed;
+  background: var(--el-fill-color-light);
+}
+.preset-name {
+  font-size: 14px;
+  font-weight: 600;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.preset-hint {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+.preset-add-icon {
+  font-size: 28px;
+  color: var(--el-color-primary);
+  line-height: 1;
+}
+.preset-edit,
+.preset-delete {
+  position: absolute;
+  bottom: 2px;
+  font-size: 11px;
+  padding: 0 2px;
+}
+.preset-edit {
+  left: 4px;
+}
+.preset-delete {
+  right: 4px;
+}
+.presets-tip {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
 }
 </style>
