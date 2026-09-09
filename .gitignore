@@ -8,6 +8,10 @@ frontend/.env
 dist/
 uniapp/unpackage/
 uniapp/dist/
+uniapp/project.private.config.json
+**/node_modules/.vite/
+**/.vitest/
+*.zip
 uploads/*
 !backend/uploads/.gitkeep
 *.log

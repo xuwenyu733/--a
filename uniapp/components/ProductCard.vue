@@ -2,17 +2,12 @@
   <view class="product-card" :class="{ compact }" @tap="goDetail">
     <view class="cover-wrap">
       <image
-        v-if="displayUrl"
         class="cover"
         :src="displayUrl"
         mode="aspectFill"
         lazy-load
         @error="onImageError"
       />
-      <view v-else class="cover empty">
-        <text class="empty-icon">📷</text>
-        <text class="empty-text">暂无图</text>
-      </view>
       <view v-if="product.tradeMode === 'exchange'" class="badge warn">换物</view>
       <view v-else-if="groupBuy" class="badge danger">拼单</view>
       <view v-else-if="product.sellerType === 'merchant'" class="badge warn">商家</view>
@@ -40,12 +35,15 @@ const props = defineProps({
 
 const preferThumb = ref(true)
 const imageError = ref(false)
+const PRODUCT_PLACEHOLDER = '/static/product-placeholder.svg'
 
 const rawPath = computed(() => props.product.cover || props.product.images?.[0])
 
 const displayUrl = computed(() => {
-  if (!rawPath.value || imageError.value) return ''
-  return preferThumb.value ? getThumbUrl(rawPath.value) : getFileUrl(rawPath.value)
+  if (rawPath.value && !imageError.value) {
+    return preferThumb.value ? getThumbUrl(rawPath.value) : getFileUrl(rawPath.value)
+  }
+  return PRODUCT_PLACEHOLDER
 })
 
 watch(
@@ -57,6 +55,7 @@ watch(
 )
 
 function onImageError() {
+  if (!rawPath.value) return
   if (preferThumb.value) {
     preferThumb.value = false
   } else {
@@ -131,25 +130,6 @@ export default {
   width: 100%;
   height: 100%;
   background: #eef2f7;
-}
-
-.cover.empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(145deg, #f5f7fa, #eef2f7);
-  gap: 8rpx;
-}
-
-.empty-icon {
-  font-size: 40rpx;
-  opacity: 0.5;
-}
-
-.empty-text {
-  color: #c0c4cc;
-  font-size: 22rpx;
 }
 
 .badge {

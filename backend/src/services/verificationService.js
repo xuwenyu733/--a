@@ -145,9 +145,9 @@ export async function reviewVerification(verificationId, reviewer, { status, rej
         regionId: user.regionId,
         realName: verification.payload.realName,
         contactPhone: verification.payload.contactPhone || user.phone,
-        serviceTypes: verification.payload.serviceTypes || ['food', 'express'],
+        serviceTypes: ['food', 'express', 'other'],
         intro: verification.payload.intro || '',
-        allowedZoneIds: verification.payload.allowedZoneIds || [],
+        allowedZoneIds: [],
         status: 'active',
       })
       user.courierVerified = true

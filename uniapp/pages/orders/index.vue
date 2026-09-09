@@ -1,62 +1,68 @@
 <template>
-  <view class="container">
-    <view class="card flow-hint muted">
-      流程：下单 → 付款 → 卖家确认收款 → 确认完成 → 评价
-    </view>
-
-    <view class="tabs">
-      <view class="tab" :class="{ active: role === 'buy' }" @tap="switchRole('buy')">我买到的</view>
-      <view class="tab" :class="{ active: role === 'sell' }" @tap="switchRole('sell')">我卖出的</view>
-    </view>
-
-    <scroll-view scroll-x class="status-tabs" show-scrollbar="false">
-      <view
-        v-for="s in statusOptions"
-        :key="s.value"
-        class="status-tab"
-        :class="{ active: statusFilter === s.value }"
-        @tap="setStatusFilter(s.value)"
-      >{{ s.label }}</view>
-    </scroll-view>
-
-    <ListCardSkeleton v-if="loading && !list.length" :count="4" />
-    <LoadState
-      v-else
-      :loading="false"
-      :error="loadError"
-      :has-data="list.length > 0"
-      empty-text="暂无订单"
-      @retry="loadOrders"
-    />
-    <view v-for="item in list" :key="item._id" class="card order-card">
-      <view class="order-head">
-        <text class="tag" :class="item.statusClass">{{ ORDER_STATUS[item.status] }}</text>
-        <text class="muted">{{ item.createdAtText }}</text>
+  <view class="page-orders">
+    <view class="header-bar">
+      <view class="flow-hint muted">
+        <text>流程：下单 - 付款 - 卖家确认收款 - 确认完成 - 评价</text>
       </view>
-      <view class="order-body" @tap="goProduct(item.productId?._id)">
-        <image v-if="item.cover" class="thumb" :src="item.cover" mode="aspectFill" lazy-load />
-        <view v-else class="thumb empty">图</view>
-        <view class="info">
-          <text class="title">{{ item.productId?.title }}</text>
-          <text class="price">¥{{ item.price }}</text>
-          <text v-if="item.isGroupBuy" class="tag danger inline">拼单价</text>
-          <text class="peer muted">{{ item.peerLabel }}：{{ item.peerName }}</text>
-          <text v-if="item.paymentHint" class="pay-hint">{{ item.paymentHint }}</text>
+
+      <view class="tabs">
+        <view class="tab" :class="{ active: role === 'buy' }" @tap="switchRole('buy')">我买到的</view>
+        <view class="tab" :class="{ active: role === 'sell' }" @tap="switchRole('sell')">我卖出的</view>
+      </view>
+
+      <view class="status-tabs">
+        <view
+          v-for="s in statusOptions"
+          :key="s.value"
+          class="status-tab"
+          :class="{ active: statusFilter === s.value }"
+          @tap="setStatusFilter(s.value)"
+        >{{ s.label }}</view>
+      </view>
+    </view>
+
+    <scroll-view scroll-y class="orders-scroll" enable-back-to-top>
+      <view class="orders-body">
+        <ListCardSkeleton v-if="loading && !list.length" :count="4" />
+        <LoadState
+          v-else
+          :loading="false"
+          :error="loadError"
+          :has-data="list.length > 0"
+          empty-text="暂无订单"
+          @retry="loadOrders"
+        />
+        <view v-for="item in list" :key="item._id" class="card order-card">
+          <view class="order-head">
+            <text class="tag" :class="item.statusClass">{{ ORDER_STATUS[item.status] }}</text>
+            <text class="muted">{{ item.createdAtText }}</text>
+          </view>
+          <view class="order-body" @tap="goProduct(item.productId?._id)">
+            <image v-if="item.cover" class="thumb" :src="item.cover" mode="aspectFill" lazy-load />
+            <view v-else class="thumb empty">图</view>
+            <view class="info">
+              <text class="title">{{ item.productId?.title }}</text>
+              <text class="price">¥{{ item.price }}</text>
+              <text v-if="item.isGroupBuy" class="tag danger inline">拼单价</text>
+              <text class="peer muted">{{ item.peerLabel }}：{{ item.peerName }}</text>
+              <text v-if="item.paymentHint" class="pay-hint">{{ item.paymentHint }}</text>
+            </view>
+          </view>
+          <view class="actions">
+            <button size="mini" @tap="goChat(item)">联系对方</button>
+            <button v-if="role === 'sell' && item.status === 'confirmed' && item.paymentStatus === 'buyer_marked'" size="mini" type="primary" @tap="confirmPaid(item._id)">确认收款</button>
+            <button v-if="role === 'buy' && item.status === 'confirmed' && item.paymentStatus !== 'paid_online' && item.paymentStatus !== 'seller_confirmed'" size="mini" type="primary" @tap="openPay(item)">去付款</button>
+            <button v-if="role === 'buy' && item.status === 'confirmed' && item.paymentStatus !== 'paid_online' && item.paymentStatus !== 'seller_confirmed' && item.paymentStatus !== 'buyer_marked'" size="mini" @tap="markManualPaid(item._id)">我已付款</button>
+            <button v-if="item.status === 'confirmed'" size="mini" type="primary" @tap="updateStatus(item._id, 'completed')">确认完成</button>
+            <button v-if="item.status === 'confirmed' || item.status === 'pending'" size="mini" @tap="updateStatus(item._id, 'cancelled')">取消订单</button>
+            <button v-if="item.status === 'completed' || item.status === 'cancelled'" size="mini" @tap="removeRecord(item._id)">删除记录</button>
+            <button v-if="item.status === 'completed' && item.reviewSummary?.canReview" size="mini" type="primary" @tap="goReview(item)">评价对方</button>
+            <text v-if="item.status === 'completed' && item.reviewSummary?.myReview" class="tag success">已评价 {{ item.reviewSummary.myReview.rating }} 星</text>
+          </view>
         </view>
+        <view v-if="!loading && !loadError && !list.length" class="empty">暂无订单</view>
       </view>
-      <view class="actions">
-        <button size="mini" @tap="goChat(item)">联系对方</button>
-        <button v-if="role === 'sell' && item.status === 'confirmed' && item.paymentStatus === 'buyer_marked'" size="mini" type="primary" @tap="confirmPaid(item._id)">确认收款</button>
-        <button v-if="role === 'buy' && item.status === 'confirmed' && item.paymentStatus !== 'paid_online' && item.paymentStatus !== 'seller_confirmed'" size="mini" type="primary" @tap="openPay(item)">去付款</button>
-        <button v-if="role === 'buy' && item.status === 'confirmed' && item.paymentStatus !== 'paid_online' && item.paymentStatus !== 'seller_confirmed' && item.paymentStatus !== 'buyer_marked'" size="mini" @tap="markManualPaid(item._id)">我已付款</button>
-        <button v-if="item.status === 'confirmed'" size="mini" type="primary" @tap="updateStatus(item._id, 'completed')">确认完成</button>
-        <button v-if="item.status === 'confirmed' || item.status === 'pending'" size="mini" @tap="updateStatus(item._id, 'cancelled')">取消订单</button>
-        <button v-if="item.status === 'completed' || item.status === 'cancelled'" size="mini" @tap="removeRecord(item._id)">删除记录</button>
-        <button v-if="item.status === 'completed' && item.reviewSummary?.canReview" size="mini" type="primary" @tap="goReview(item)">评价对方</button>
-        <text v-if="item.status === 'completed' && item.reviewSummary?.myReview" class="tag success">已评价 {{ item.reviewSummary.myReview.rating }} 星</text>
-      </view>
-    </view>
-    <view v-if="!loading && !loadError && !list.length" class="empty">暂无订单</view>
+    </scroll-view>
 
     <view v-if="payVisible" class="pay-mask" @tap="closePay">
       <view class="pay-panel card" @tap.stop>
@@ -406,15 +412,55 @@ function closePay() {
 </script>
 
 <style lang="scss" scoped>
-.flow-hint { font-size: 24rpx; padding: 16rpx 20rpx; margin-bottom: 16rpx; line-height: 1.5; }
-.tabs { display: flex; gap: 16rpx; margin-bottom: 16rpx; }
+.page-orders {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #f5f7fa;
+}
+
+.header-bar {
+  flex-shrink: 0;
+  padding: 16rpx 24rpx 12rpx;
+  background: #f5f7fa;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+}
+
+.orders-scroll {
+  flex: 1;
+  height: 0;
+  width: 100%;
+}
+
+.orders-body {
+  padding: 0 24rpx 24rpx;
+  box-sizing: border-box;
+}
+
+.flow-hint {
+  font-size: 24rpx;
+  padding: 16rpx 20rpx;
+  margin-bottom: 12rpx;
+  line-height: 1.5;
+  background: #fff;
+  border-radius: 12rpx;
+}
+
+.tabs { display: flex; gap: 16rpx; margin-bottom: 12rpx; }
 .pay-qr { width: 320rpx; height: 320rpx; margin: 16rpx auto; display: block; border: 1rpx solid #ebeef5; border-radius: 12rpx; }
 .tab { flex: 1; text-align: center; padding: 16rpx; background: #fff; border-radius: 12rpx; font-size: 28rpx; }
 .tab.active { background: #409eff; color: #fff; }
-.status-tabs { white-space: nowrap; margin-bottom: 20rpx; }
+.status-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
 .status-tab {
-  display: inline-block; padding: 8rpx 20rpx; margin-right: 12rpx;
-  background: #fff; border-radius: 999rpx; font-size: 24rpx;
+  padding: 8rpx 20rpx;
+  background: #fff;
+  border-radius: 999rpx;
+  font-size: 24rpx;
 }
 .status-tab.active { background: #ecf5ff; color: #409eff; }
 .order-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16rpx; }

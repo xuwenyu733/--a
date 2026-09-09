@@ -1,11 +1,26 @@
 import DeliveryOrder from '../models/DeliveryOrder.js'
 import DeliveryZone from '../models/DeliveryZone.js'
 import CourierProfile from '../models/CourierProfile.js'
-import User from '../models/User.js'
 import Notification from '../models/Notification.js'
-import { DELIVERY_ORDER_STATUS } from '../constants/delivery.js'
+import { DELIVERY_ORDER_STATUS, DELIVERY_SYSTEM_CANCEL_ACCEPT_EXPIRED } from '../constants/delivery.js'
 import { pushDeliveryNew, pushDeliveryUpdate } from '../utils/deliveryWs.js'
 import { paginationMeta } from '../utils/pagination.js'
+import {
+  formatDeliveryTimeLabel,
+  formatActualDeliveryLabel,
+  isAcceptExpired,
+  isDeliveryOverdue,
+  normalizeDeliveryDeadlines,
+  validateDeliveryTimePayload,
+  findHallTimeSlotOption,
+  buildDeliverySlotMatchCondition,
+  buildOpenHallDeadlineFilter,
+  buildAcceptExpiredFilter,
+  buildUserCancelledFilter,
+  buildOpenAcceptExpiredFilter,
+  isSystemAcceptExpiredOrder,
+  sortOrdersByDeadline,
+} from '../../../shared/deliveryTimeCore.js'
 
 async function notify(userId, { type, title, content, relatedId }) {
   await Notification.create({ userId, type, title, content, relatedId })
@@ -37,6 +52,45 @@ function withOwnOrderFlag(order, userId) {
   }
 }
 
+function enrichDeliveryOrder(order, userId, now = new Date()) {
+  const base = withOwnOrderFlag(order, userId)
+  const deadlines = normalizeDeliveryDeadlines(base, now)
+  const acceptExpired = isAcceptExpired({ ...base, ...deadlines }, now)
+  const systemAcceptExpired = isSystemAcceptExpiredOrder(base)
+  const deliveryOverdue = isDeliveryOverdue({ ...base, ...deadlines }, now)
+  return {
+    ...base,
+    ...deadlines,
+    acceptExpired,
+    systemAcceptExpired,
+    deliveryOverdue,
+    deliveryTimeLabel: formatDeliveryTimeLabel({ ...base, ...deadlines }, now),
+    actualDeliveryLabel: formatActualDeliveryLabel(base, now),
+  }
+}
+
+async function autoCancelAcceptExpiredOrders(now = new Date()) {
+  const expired = await DeliveryOrder.find(buildOpenAcceptExpiredFilter(now))
+  for (const order of expired) {
+    order.status = DELIVERY_ORDER_STATUS.CANCELLED
+    order.cancelReason = DELIVERY_SYSTEM_CANCEL_ACCEPT_EXPIRED
+    order.cancelledBy = null
+    order.acceptExpiredNotified = true
+    await order.save()
+    const posterUserId = order.posterId?._id || order.posterId
+    if (posterUserId) {
+      await notify(posterUserId, {
+        type: 'delivery',
+        title: '跑腿订单已自动取消',
+        content: `您发布的跑腿「${order.title || '订单'}」已超过预计送达时间未接单，系统已自动取消`,
+        relatedId: order._id,
+      })
+    }
+    pushDeliveryUpdate(order)
+  }
+  return expired.length
+}
+
 export async function createOrder(user, payload) {
   if (!user.regionId) {
     const err = new Error('请先完善所属校区')
@@ -49,6 +103,8 @@ export async function createOrder(user, payload) {
     err.code = 40000
     throw err
   }
+  const now = new Date()
+  const deliveryTime = validateDeliveryTimePayload(payload, now)
   const order = await DeliveryOrder.create({
     regionId: user.regionId,
     zoneId: payload.zoneId,
@@ -62,59 +118,88 @@ export async function createOrder(user, payload) {
     fee: payload.fee,
     remark: payload.remark || '',
     status: DELIVERY_ORDER_STATUS.OPEN,
+    ...deliveryTime,
   })
   await pushDeliveryNew(order)
   return populateQuery(DeliveryOrder.findById(order._id))
 }
 
-export async function listMyOrders(user, { role = 'poster', status, page = 1, pageSize = 20 } = {}) {
+export async function listMyOrders(user, { role = 'poster', status, acceptExpired, page = 1, pageSize = 20 } = {}) {
   const filter =
     role === 'courier'
       ? { courierId: user._id }
       : { posterId: user._id }
-  if (status) filter.status = status
-  const skip = (Number(page) - 1) * Number(pageSize)
-  const [list, total] = await Promise.all([
-    populateQuery(DeliveryOrder.find(filter).sort({ createdAt: -1 }).skip(skip).limit(Number(pageSize))),
-    DeliveryOrder.countDocuments(filter),
-  ])
-  return { list, pagination: paginationMeta(Number(page), Number(pageSize), total) }
-}
-
-export async function listOpenOrders(user, { zoneId, type, page = 1, pageSize = 20 } = {}) {
-  if (!user.courierVerified) {
-    const err = new Error('请先完成骑手认证并通过审核')
-    err.code = 40301
-    throw err
+  const now = new Date()
+  if (role === 'poster') {
+    await autoCancelAcceptExpiredOrders(now)
   }
-  const filter = {
-    regionId: user.regionId,
-    status: DELIVERY_ORDER_STATUS.OPEN,
-  }
-  if (zoneId) filter.zoneId = zoneId
-  if (type) filter.type = type
-
-  const profile = await CourierProfile.findOne({ userId: user._id, status: 'active' })
-  if (profile?.allowedZoneIds?.length) {
-    if (zoneId) {
-      if (!profile.allowedZoneIds.some((id) => id.toString() === zoneId)) {
-        return { list: [], pagination: paginationMeta(Number(page), Number(pageSize), 0) }
-      }
-      filter.zoneId = zoneId
-    } else {
-      filter.zoneId = { $in: profile.allowedZoneIds }
+  const expiredOnly = acceptExpired === true || acceptExpired === 'true' || acceptExpired === '1'
+  if (expiredOnly) {
+    if (role !== 'poster') {
+      const err = new Error('仅发布人可筛选已逾期订单')
+      err.code = 40000
+      throw err
     }
-  } else if (zoneId) {
-    filter.zoneId = zoneId
+    Object.assign(filter, buildAcceptExpiredFilter())
+  } else if (status === DELIVERY_ORDER_STATUS.CANCELLED) {
+    Object.assign(filter, buildUserCancelledFilter())
+  } else if (status) {
+    filter.status = status
   }
-
   const skip = (Number(page) - 1) * Number(pageSize)
   const [rawList, total] = await Promise.all([
     populateQuery(DeliveryOrder.find(filter).sort({ createdAt: -1 }).skip(skip).limit(Number(pageSize))),
     DeliveryOrder.countDocuments(filter),
   ])
-  const list = rawList.map((order) => withOwnOrderFlag(order, user._id))
+  const list = rawList.map((order) => enrichDeliveryOrder(order, user._id, now))
   return { list, pagination: paginationMeta(Number(page), Number(pageSize), total) }
+}
+
+export async function listOpenOrders(
+  user,
+  { zoneId, type, deliveryDeadlineStart, deliveryDeadlineEnd, page = 1, pageSize = 20 } = {}
+) {
+  if (!user.courierVerified) {
+    const err = new Error('请先完成骑手认证并通过审核')
+    err.code = 40301
+    throw err
+  }
+  const now = new Date()
+  await autoCancelAcceptExpiredOrders(now)
+  const filter = {
+    regionId: user.regionId,
+    status: DELIVERY_ORDER_STATUS.OPEN,
+    ...buildOpenHallDeadlineFilter(now),
+  }
+  if (zoneId) filter.zoneId = zoneId
+  if (type) filter.type = type
+
+  if (deliveryDeadlineStart && deliveryDeadlineEnd) {
+    const slot = findHallTimeSlotOption(deliveryDeadlineStart, deliveryDeadlineEnd, now)
+    if (!slot) {
+      const err = new Error('所选送达时段无效或已过期，请重新选择')
+      err.code = 40000
+      throw err
+    }
+    const slotMatch = buildDeliverySlotMatchCondition(slot.deadlineStart, slot.deadlineEnd, now)
+    filter.$and = [...(filter.$and || []), slotMatch]
+  }
+
+  const skip = (Number(page) - 1) * Number(pageSize)
+  const acceptableFilter = { ...filter, posterId: { $ne: user._id } }
+  const [rawList, total, acceptableTotal] = await Promise.all([
+    populateQuery(DeliveryOrder.find(filter).sort({ deliveryDeadlineEnd: 1, createdAt: -1 }).skip(skip).limit(Number(pageSize))),
+    DeliveryOrder.countDocuments(filter),
+    DeliveryOrder.countDocuments(acceptableFilter),
+  ])
+  const list = sortOrdersByDeadline(rawList.map((order) => enrichDeliveryOrder(order, user._id, now)), now)
+  return {
+    list,
+    pagination: {
+      ...paginationMeta(Number(page), Number(pageSize), total),
+      acceptableTotal,
+    },
+  }
 }
 
 export async function acceptOrder(courier, orderId) {
@@ -136,6 +221,12 @@ export async function acceptOrder(courier, orderId) {
   if (isOwnPosterOrder(existing, courier._id)) {
     const err = new Error('不能接自己发布的订单')
     err.code = 40301
+    throw err
+  }
+  const deadlines = normalizeDeliveryDeadlines(existing, new Date())
+  if (new Date() > deadlines.deliveryDeadlineEnd) {
+    const err = new Error('订单已超过预期送达时间，无法接单')
+    err.code = 40900
     throw err
   }
   const order = await DeliveryOrder.findByIdAndUpdate(
@@ -270,5 +361,5 @@ export async function getOrderDetail(user, orderId) {
     err.code = 40301
     throw err
   }
-  return order
+  return enrichDeliveryOrder(order, user._id)
 }

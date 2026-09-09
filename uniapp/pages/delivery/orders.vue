@@ -1,73 +1,96 @@
 <template>
-  <view class="container">
-    <view class="tabs">
-      <view class="tab" :class="{ active: roleTab === 'poster' }" @tap="switchRole('poster')">我发布的</view>
-      <view v-if="user?.courierVerified" class="tab" :class="{ active: roleTab === 'courier' }" @tap="switchRole('courier')">我接的单</view>
+  <view class="page-delivery-orders">
+    <view class="header-bar">
+      <view class="flow-hint muted">
+        <text>流程：发布需求 - 骑手接单 - 开始配送 - 确认完成</text>
+      </view>
+
+      <view class="tabs">
+        <view class="tab" :class="{ active: roleTab === 'poster' }" @tap="switchRole('poster')">我发布的</view>
+        <view v-if="user?.courierVerified" class="tab" :class="{ active: roleTab === 'courier' }" @tap="switchRole('courier')">我接的单</view>
+      </view>
+
+      <view class="status-tabs">
+        <view
+          v-for="s in primaryStatusFilters"
+          :key="s.value"
+          class="status-tab"
+          :class="{ active: statusFilter === s.value }"
+          @tap="setStatusFilter(s.value)"
+        >{{ s.label }}</view>
+      </view>
+      <view v-if="roleTab === 'poster'" class="status-tabs status-tabs--extra">
+        <view
+          v-for="s in posterExtraFilters"
+          :key="s.value"
+          class="status-tab"
+          :class="{ active: statusFilter === s.value }"
+          @tap="setStatusFilter(s.value)"
+        >{{ s.label }}</view>
+      </view>
     </view>
 
-    <scroll-view scroll-x class="status-tabs" show-scrollbar="false">
-      <view
-        v-for="s in statusFilters"
-        :key="s.value"
-        class="status-tab"
-        :class="{ active: statusFilter === s.value }"
-        @tap="setStatusFilter(s.value)"
-      >{{ s.label }}</view>
+    <scroll-view scroll-y class="orders-scroll" enable-back-to-top>
+      <view class="orders-body">
+        <ListCardSkeleton v-if="loading && !orders.length" :count="4" />
+        <LoadState
+          v-else
+          :loading="false"
+          :error="loadError"
+          :has-data="orders.length > 0"
+          empty-text="暂无订单"
+          @retry="load"
+        />
+        <view v-for="item in orders" :key="item._id" class="card order-card">
+          <view class="head">
+            <text class="tag">{{ typeLabel(item.type) }}</text>
+            <text class="tag" :class="statusClass(item)">{{ statusLabel(item) }}</text>
+            <text class="price">¥{{ item.fee }}</text>
+          </view>
+          <text v-if="item.title" class="title">{{ item.title }}</text>
+          <text v-if="item.deliveryTimeLabel" class="line">预计送达：{{ item.deliveryTimeLabel }}</text>
+          <text class="line">实际送达：{{ item.actualDeliveryLabel || '--' }}</text>
+          <text v-if="roleTab === 'courier' && item.deliveryOverdue" class="line warn">已超时</text>
+          <text class="line">区域：{{ item.zoneId?.name }}</text>
+          <text class="line">取：{{ item.pickupAddress }}</text>
+          <text class="line">送：{{ item.dropoffAddress }}</text>
+          <text v-if="item.contactPhone && roleTab === 'courier'" class="line">发布人电话：{{ item.contactPhone }}</text>
+          <text v-if="item.courierId && roleTab === 'poster'" class="line muted">
+            骑手：{{ item.courierId?.nickname || item.courierId?.phone || '—' }}
+          </text>
+          <text v-if="item.posterId && roleTab === 'courier'" class="line muted">
+            发布人：{{ item.posterId?.nickname || item.posterId?.phone || '—' }}
+          </text>
+          <text v-if="item.description" class="desc muted">{{ item.description }}</text>
+          <text v-if="item.remark" class="desc muted">备注：{{ item.remark }}</text>
+          <text class="time muted">{{ formatTime(item.createdAt) }}</text>
+
+          <view class="actions">
+            <button v-if="peerPhone(item)" size="mini" @tap="callPhone(peerPhone(item))">联系对方</button>
+            <button v-if="canRepost(item)" size="mini" @tap="goRepost(item)">修改</button>
+            <button v-if="canCancel(item)" size="mini" type="warn" @tap="cancel(item)">取消</button>
+            <button
+              v-if="roleTab === 'courier' && item.status === 'accepted'"
+              size="mini"
+              type="primary"
+              @tap="confirmUpdate(item, 'delivering', '确认开始配送？')"
+            >开始配送</button>
+            <button
+              v-if="roleTab === 'courier' && item.status === 'delivering'"
+              size="mini"
+              type="primary"
+              @tap="confirmUpdate(item, 'completed', '确认已送达并完成订单？')"
+            >确认完成</button>
+          </view>
+        </view>
+      </view>
     </scroll-view>
-
-    <ListCardSkeleton v-if="loading && !orders.length" :count="4" />
-    <LoadState
-      v-else
-      :loading="false"
-      :error="loadError"
-      :has-data="orders.length > 0"
-      empty-text="暂无订单"
-      @retry="load"
-    />
-    <view v-for="item in orders" :key="item._id" class="card order-card">
-      <view class="head">
-        <text class="tag">{{ typeLabel(item.type) }}</text>
-        <text class="tag" :class="statusClass(item.status)">{{ DELIVERY_ORDER_STATUS[item.status] }}</text>
-        <text class="price">¥{{ item.fee }}</text>
-      </view>
-      <text v-if="item.title" class="title">{{ item.title }}</text>
-      <text class="line">区域：{{ item.zoneId?.name }}</text>
-      <text class="line">取：{{ item.pickupAddress }}</text>
-      <text class="line">送：{{ item.dropoffAddress }}</text>
-      <text v-if="item.contactPhone && roleTab === 'courier'" class="line">发布人电话：{{ item.contactPhone }}</text>
-      <text v-if="item.courierId && roleTab === 'poster'" class="line muted">
-        骑手：{{ item.courierId?.nickname || item.courierId?.phone || '—' }}
-      </text>
-      <text v-if="item.posterId && roleTab === 'courier'" class="line muted">
-        发布人：{{ item.posterId?.nickname || item.posterId?.phone || '—' }}
-      </text>
-      <text v-if="item.description" class="desc muted">{{ item.description }}</text>
-      <text v-if="item.remark" class="desc muted">备注：{{ item.remark }}</text>
-      <text class="time muted">{{ formatTime(item.createdAt) }}</text>
-
-      <view class="actions">
-        <button v-if="peerPhone(item)" size="mini" @tap="callPhone(peerPhone(item))">联系对方</button>
-        <button v-if="canCancel(item)" size="mini" type="warn" @tap="cancel(item)">取消</button>
-        <button
-          v-if="roleTab === 'courier' && item.status === 'accepted'"
-          size="mini"
-          type="primary"
-          @tap="confirmUpdate(item, 'delivering', '确认开始配送？')"
-        >开始配送</button>
-        <button
-          v-if="roleTab === 'courier' && item.status === 'delivering'"
-          size="mini"
-          type="primary"
-          @tap="confirmUpdate(item, 'completed', '确认已送达并完成订单？')"
-        >确认完成</button>
-      </view>
-    </view>
   </view>
 </template>
 
 <script setup>
 import { ref, onUnmounted } from 'vue'
-import { onLoad, onShow, onPullDownRefresh } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getMyDeliveryOrders, updateDeliveryOrderStatus } from '@/api/delivery'
 import { ensureLogin } from '@/utils/auth'
 import { refreshUserAndVerify } from '@/utils/verify'
@@ -75,12 +98,14 @@ import { onWs, offWs } from '@/utils/ws'
 import { WS_EVENTS } from '@/utils/wsEvents'
 import {
   DELIVERY_ORDER_TYPES,
-  DELIVERY_ORDER_STATUS,
-  DELIVERY_STATUS_FILTERS,
+  DELIVERY_PRIMARY_STATUS_FILTERS,
+  DELIVERY_POSTER_EXTRA_FILTERS,
+  deliveryOrderStatusLabel,
   deliveryStatusClass,
   labelOf,
 } from '@/constants/delivery'
 import { formatTime } from '@/utils/format'
+import { saveRepostDraft } from '@/utils/deliveryRepost'
 import LoadState from '@/components/LoadState.vue'
 import ListCardSkeleton from '@/components/ListCardSkeleton.vue'
 
@@ -90,7 +115,8 @@ const loadError = ref('')
 const orders = ref([])
 const roleTab = ref('poster')
 const statusFilter = ref('')
-const statusFilters = DELIVERY_STATUS_FILTERS
+const primaryStatusFilters = DELIVERY_PRIMARY_STATUS_FILTERS
+const posterExtraFilters = DELIVERY_POSTER_EXTRA_FILTERS
 let onDeliveryUpdate = null
 let onDeliveryNew = null
 
@@ -124,10 +150,11 @@ onShow(async () => {
   load()
 })
 
-onPullDownRefresh(() => load().finally(() => uni.stopPullDownRefresh()))
-
 function switchRole(r) {
   roleTab.value = r
+  if (r === 'courier' && statusFilter.value === 'acceptExpired') {
+    statusFilter.value = ''
+  }
   load()
 }
 
@@ -140,8 +167,12 @@ function typeLabel(type) {
   return labelOf(DELIVERY_ORDER_TYPES, type)
 }
 
-function statusClass(status) {
-  return deliveryStatusClass(status)
+function statusLabel(item) {
+  return deliveryOrderStatusLabel(item)
+}
+
+function statusClass(item) {
+  return deliveryStatusClass(item)
 }
 
 function peerPhone(item) {
@@ -152,8 +183,18 @@ function peerPhone(item) {
 }
 
 function canCancel(item) {
+  if (item.acceptExpired || item.systemAcceptExpired) return false
   return ['open', 'accepted'].includes(item.status) &&
     (roleTab.value === 'poster' || (roleTab.value === 'courier' && item.courierId))
+}
+
+function canRepost(item) {
+  return roleTab.value === 'poster' && item.status === 'cancelled'
+}
+
+function goRepost(item) {
+  saveRepostDraft(item)
+  uni.navigateTo({ url: '/pages/delivery/post' })
 }
 
 async function load() {
@@ -161,7 +202,11 @@ async function load() {
   loadError.value = ''
   try {
     const params = { role: roleTab.value, pageSize: 50 }
-    if (statusFilter.value) params.status = statusFilter.value
+    if (statusFilter.value === 'acceptExpired') {
+      params.acceptExpired = true
+    } else if (statusFilter.value) {
+      params.status = statusFilter.value
+    }
     const res = await getMyDeliveryOrders(params)
     orders.value = res.list || []
   } catch (e) {
@@ -212,21 +257,67 @@ function callPhone(phone) {
 </script>
 
 <style lang="scss" scoped>
-.tabs { display: flex; gap: 16rpx; margin-bottom: 16rpx; }
+.page-delivery-orders {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #f5f7fa;
+}
+
+.header-bar {
+  flex-shrink: 0;
+  padding: 16rpx 24rpx 12rpx;
+  background: #f5f7fa;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+}
+
+.orders-scroll {
+  flex: 1;
+  height: 0;
+  width: 100%;
+}
+
+.orders-body {
+  padding: 0 24rpx 24rpx;
+  box-sizing: border-box;
+}
+
+.flow-hint {
+  font-size: 24rpx;
+  padding: 16rpx 20rpx;
+  margin-bottom: 12rpx;
+  line-height: 1.5;
+  background: #fff;
+  border-radius: 12rpx;
+}
+
+.tabs { display: flex; gap: 16rpx; margin-bottom: 12rpx; }
 .tab { flex: 1; text-align: center; padding: 16rpx; background: #fff; border-radius: 12rpx; font-size: 28rpx; }
 .tab.active { background: #409eff; color: #fff; }
-.status-tabs { white-space: nowrap; margin-bottom: 20rpx; }
+.status-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+.status-tabs--extra {
+  margin-top: 12rpx;
+}
 .status-tab {
-  display: inline-block; padding: 8rpx 20rpx; margin-right: 12rpx;
-  background: #fff; border-radius: 999rpx; font-size: 24rpx;
+  padding: 8rpx 20rpx;
+  background: #fff;
+  border-radius: 999rpx;
+  font-size: 24rpx;
 }
 .status-tab.active { background: #ecf5ff; color: #409eff; }
 .head { display: flex; gap: 12rpx; flex-wrap: wrap; align-items: center; margin-bottom: 12rpx; }
 .title { display: block; font-weight: 600; font-size: 30rpx; margin-bottom: 8rpx; }
 .line { display: block; font-size: 26rpx; margin-bottom: 6rpx; }
+.line.warn { color: #f56c6c; font-weight: 600; }
 .desc { display: block; font-size: 24rpx; line-height: 1.5; margin-bottom: 4rpx; }
 .time { display: block; margin-top: 8rpx; font-size: 22rpx; }
 .price { color: #f56c6c; font-weight: 700; margin-left: auto; }
 .actions { margin-top: 16rpx; display: flex; gap: 12rpx; flex-wrap: wrap; }
 .tag.primary { background: #ecf5ff; color: #409eff; }
+.tag.danger { background: #fef0f0; color: #f56c6c; }
 </style>

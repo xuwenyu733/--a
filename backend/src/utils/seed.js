@@ -14,6 +14,8 @@ async function seed() {
     { $or: [{ creditScore: { $exists: false } }, { creditScore: null }] },
     { $set: { creditScore: 100 } }
   )
+  await User.updateMany({ wechatOpenId: null }, { $unset: { wechatOpenId: 1 } })
+  await User.updateMany({ friendCode: null }, { $unset: { friendCode: 1 } })
 
   let region = await Region.findOne({ code: 'demo_campus' })
   if (!region) {

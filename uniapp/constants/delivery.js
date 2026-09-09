@@ -12,7 +12,7 @@ export const DELIVERY_ORDER_STATUS = {
   cancelled: '已取消',
 }
 
-export const DELIVERY_STATUS_FILTERS = [
+export const DELIVERY_PRIMARY_STATUS_FILTERS = [
   { value: '', label: '全部' },
   { value: 'open', label: '待接单' },
   { value: 'accepted', label: '已接单' },
@@ -21,7 +21,26 @@ export const DELIVERY_STATUS_FILTERS = [
   { value: 'cancelled', label: '已取消' },
 ]
 
-export function deliveryStatusClass(status) {
+/** @deprecated 与 DELIVERY_PRIMARY_STATUS_FILTERS 相同，保留兼容 */
+export const DELIVERY_COURIER_STATUS_FILTERS = DELIVERY_PRIMARY_STATUS_FILTERS
+
+export const DELIVERY_POSTER_EXTRA_FILTERS = [
+  { value: 'acceptExpired', label: '已逾期' },
+]
+
+export const DELIVERY_ORDER_DISPLAY_STATUS = {
+  acceptExpired: '已逾期',
+}
+
+export function deliveryOrderStatusLabel(item) {
+  if (item?.systemAcceptExpired) return DELIVERY_ORDER_DISPLAY_STATUS.acceptExpired
+  return DELIVERY_ORDER_STATUS[item?.status] || item?.status || ''
+}
+
+export function deliveryStatusClass(statusOrItem) {
+  const item = typeof statusOrItem === 'object' ? statusOrItem : null
+  const status = item ? item.status : statusOrItem
+  if (item?.systemAcceptExpired) return 'danger'
   if (status === 'completed') return 'success'
   if (status === 'cancelled') return 'info'
   if (status === 'open') return 'warning'

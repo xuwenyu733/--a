@@ -67,7 +67,7 @@ onMounted(async () => {
   loadingOpen.value = true
   try {
     const res = await deliveryApi.getOpenDeliveryOrders({ pageSize: 1 })
-    openCount.value = res.pagination?.total ?? res.list?.length ?? 0
+    openCount.value = res.pagination?.acceptableTotal ?? 0
   } catch (e) {
     console.warn('load open delivery orders failed', e)
     openCount.value = 0

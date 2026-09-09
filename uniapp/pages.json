@@ -50,7 +50,8 @@
     {
       "path": "pages/orders/index",
       "style": {
-        "navigationBarTitleText": "我的订单"
+        "navigationBarTitleText": "我的订单",
+        "disableScroll": true
       }
     },
     {
@@ -137,14 +138,14 @@
       "path": "pages/delivery/hall",
       "style": {
         "navigationBarTitleText": "接单大厅",
-        "enablePullDownRefresh": true
+        "disableScroll": true
       }
     },
     {
       "path": "pages/delivery/orders",
       "style": {
         "navigationBarTitleText": "跑腿订单",
-        "enablePullDownRefresh": true
+        "disableScroll": true
       }
     },
     {

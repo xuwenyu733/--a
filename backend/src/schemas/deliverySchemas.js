@@ -23,6 +23,9 @@ export const createDeliveryOrderSchema = z.object({
   contactPhone: phone.optional(),
   fee: z.coerce.number({ required_error: '请填写费用' }).min(0, '费用不能为负').max(9999),
   remark: z.string().max(200).optional().default(''),
+  deliveryTimeType: z.enum(['asap', 'slot'], { required_error: '请选择预计送达时间' }),
+  deliveryDeadlineStart: z.coerce.date({ required_error: '请选择预计送达时间' }),
+  deliveryDeadlineEnd: z.coerce.date({ required_error: '请选择预计送达时间' }),
 })
 
 export const updateDeliveryOrderStatusSchema = z.object({
@@ -33,12 +36,25 @@ export const updateDeliveryOrderStatusSchema = z.object({
 export const listMyDeliveryOrdersQuerySchema = paginationQuerySchema.extend({
   role: z.enum(['poster', 'courier']).optional(),
   status: z.enum(deliveryStatuses).optional(),
+  acceptExpired: z
+    .union([z.boolean(), z.enum(['true', 'false', '1', '0'])])
+    .optional()
+    .transform((v) => v === true || v === 'true' || v === '1'),
 })
 
 export const listOpenDeliveryOrdersQuerySchema = paginationQuerySchema.extend({
   zoneId: optionalObjectId,
   type: z.enum(deliveryTypes).optional(),
-})
+  deliveryDeadlineStart: z.coerce.date().optional(),
+  deliveryDeadlineEnd: z.coerce.date().optional(),
+}).refine(
+  (data) => {
+    const hasStart = data.deliveryDeadlineStart != null
+    const hasEnd = data.deliveryDeadlineEnd != null
+    return hasStart === hasEnd
+  },
+  { message: '送达时段参数不完整', path: ['deliveryDeadlineEnd'] }
+)
 
 export const listRegionDeliveryOrdersQuerySchema = paginationQuerySchema.extend({
   status: z.enum(deliveryStatuses).optional(),

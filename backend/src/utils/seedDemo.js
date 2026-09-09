@@ -657,7 +657,7 @@ async function seedDemo() {
       contactPhone: courier.phone,
       serviceTypes: ['food', 'express', 'other'],
       intro: '熟悉校园路线，接单快、态度好',
-      allowedZoneIds: zones.slice(0, 4).map((z) => z._id),
+      allowedZoneIds: [],
       status: 'active',
       stats: { orderCount: 12, completedCount: 10, rating: 4.9 },
     })

@@ -171,7 +171,7 @@ async function loadCounts() {
   if (user.value?.courierVerified) {
     try {
       const res = await getOpenDeliveryOrders({ pageSize: 1 })
-      openCount.value = res.pagination?.total ?? 0
+      openCount.value = res.pagination?.acceptableTotal ?? 0
     } catch (e) {
       openFailed = true
       openCount.value = 0

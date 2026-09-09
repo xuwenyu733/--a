@@ -23,14 +23,6 @@
       </template>
     </el-alert>
 
-    <el-alert
-      v-if="!zones.length && !auth.user?.courierVerified"
-      title="当前校区尚未配置配送区域，请联系管理员在后台「配送区域」中初始化"
-      type="warning"
-      show-icon
-      class="zone-tip"
-    />
-
     <el-form
       v-if="!auth.user?.courierVerified && status?.courier?.status !== 'pending'"
       :model="form"
@@ -42,16 +34,6 @@
       </el-form-item>
       <el-form-item label="联系电话">
         <el-input v-model="form.contactPhone" :placeholder="auth.user?.phone" />
-      </el-form-item>
-      <el-form-item label="服务类型">
-        <el-checkbox-group v-model="form.serviceTypes">
-          <el-checkbox v-for="t in COURIER_SERVICE_TYPES" :key="t.value" :value="t.value">{{ t.label }}</el-checkbox>
-        </el-checkbox-group>
-      </el-form-item>
-      <el-form-item label="服务区域">
-        <el-select v-model="form.allowedZoneIds" multiple placeholder="不选则服务全校配送区" style="width:100%">
-          <el-option v-for="z in zones" :key="z._id" :label="z.name" :value="z._id" />
-        </el-select>
       </el-form-item>
       <el-form-item label="个人简介">
         <el-input v-model="form.intro" type="textarea" :rows="3" placeholder="可选，介绍您的空闲时间与经验" />
@@ -71,19 +53,14 @@ import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import * as userApi from '@/api/user'
-import * as deliveryApi from '@/api/delivery'
-import { COURIER_SERVICE_TYPES } from '@/constants/delivery'
 
 const auth = useAuthStore()
 const loading = ref(false)
 const loadError = ref('')
 const status = ref(null)
-const zones = ref([])
 const form = ref({
   realName: '',
   contactPhone: '',
-  serviceTypes: ['food', 'express'],
-  allowedZoneIds: [],
   intro: '',
 })
 
@@ -91,10 +68,6 @@ async function loadPage() {
   loadError.value = ''
   try {
     status.value = await userApi.getVerifyStatus()
-    const regionId = auth.user?.regionId?._id || auth.user?.regionId
-    if (regionId) {
-      zones.value = await deliveryApi.getDeliveryZones(regionId)
-    }
   } catch (e) {
     loadError.value = e.message || '加载认证信息失败'
   }

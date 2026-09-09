@@ -4,6 +4,7 @@ import User from '../../src/models/User.js'
 import DeliveryZone from '../../src/models/DeliveryZone.js'
 import CourierProfile from '../../src/models/CourierProfile.js'
 import { ROLES } from '../../src/constants/roles.js'
+import { buildDeliveryTimeOptions, DELIVERY_TIME_TYPE } from '../../../shared/deliveryTimeCore.js'
 import { authHeader } from './seedTrade.js'
 
 let phoneSeq = 2000
@@ -62,7 +63,7 @@ export async function seedDeliveryFixture(options = {}) {
     regionId: region._id,
     realName: '测试骑手',
     contactPhone: courierPhone,
-    allowedZoneIds: [zone._id],
+    allowedZoneIds: [],
     status: 'active',
   })
   if (options.courierSameAsPoster) {
@@ -71,21 +72,32 @@ export async function seedDeliveryFixture(options = {}) {
       regionId: region._id,
       realName: '发单骑手',
       contactPhone: posterPhone,
-      allowedZoneIds: [zone._id],
+      allowedZoneIds: [],
       status: 'active',
     })
   }
 
-  const sampleOrder = {
+  const sampleOrder = withDeliveryTime({
     zoneId: zone._id.toString(),
     type: 'express',
     title: '代取快递',
     pickupAddress: '菜鸟驿站A',
     dropoffAddress: '1号公寓201',
     fee: 5,
-  }
+  })
 
   return { region, zone, poster, courier, student, sampleOrder }
+}
+
+export function withDeliveryTime(payload, now = new Date()) {
+  const options = buildDeliveryTimeOptions(now)
+  const pick = options.find((o) => o.type === DELIVERY_TIME_TYPE.SLOT) || options[0]
+  return {
+    ...payload,
+    deliveryTimeType: pick.type,
+    deliveryDeadlineStart: pick.deadlineStart.toISOString(),
+    deliveryDeadlineEnd: pick.deadlineEnd.toISOString(),
+  }
 }
 
 export { authHeader }

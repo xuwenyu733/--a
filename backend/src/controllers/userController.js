@@ -145,13 +145,11 @@ export async function submitMerchantVerify(req, res, next) {
 
 export async function submitCourierVerify(req, res, next) {
   try {
-    const { realName, contactPhone, serviceTypes, intro, allowedZoneIds } = req.body
+    const { realName, contactPhone, intro } = req.body
     const verification = await verificationService.submitCourierVerification(req.user, {
       realName: realName.trim(),
       contactPhone: contactPhone || req.user.phone,
-      serviceTypes: serviceTypes ?? ['food', 'express'],
       intro: intro || '',
-      allowedZoneIds: allowedZoneIds ?? [],
     })
     return success(res, verification, '骑手申请已提交，等待管理员审核')
   } catch (err) {

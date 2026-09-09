@@ -46,6 +46,7 @@ export async function register(req, res, next) {
       refreshToken,
     }), '注册成功')
   } catch (err) {
+    if (err.code === 11000) return next(err)
     if (err.code) return fail(res, err.code, err.message, err.code >= 50000 ? 500 : 400)
     next(err)
   }

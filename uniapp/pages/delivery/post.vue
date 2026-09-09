@@ -74,6 +74,12 @@
       <text class="label">酬劳(元) *</text>
       <input class="input" type="digit" v-model="form.fee" placeholder="1～500" />
 
+      <text class="label">预计送达 *</text>
+      <picker :range="timeOptionLabels" @change="onTimeChange">
+        <view class="picker">{{ selectedTimeLabel || '请选择送达时段' }}</view>
+      </picker>
+      <text v-if="!timeOptions.length" class="presets-tip muted">当前无可选时段，请稍后再试（服务时间 8:00-22:00）</text>
+
       <text class="label">详细说明</text>
       <textarea class="textarea" v-model="form.description" placeholder="取件码、快递单号、注意事项等" />
 
@@ -119,6 +125,8 @@ import {
   renamePreset,
   saveDeliveryPresets,
 } from '@/utils/deliveryPresets'
+import { buildDeliveryTimeOptions, deliveryTimePayloadFromOption, DELIVERY_TIME_TYPE } from '@/utils/deliveryTime'
+import { consumeRepostDraft } from '@/utils/deliveryRepost'
 
 const MAX_PRESETS = MAX_DELIVERY_PRESETS
 const loading = ref(false)
@@ -128,7 +136,10 @@ const zones = ref([])
 const regionId = ref('')
 const userId = ref('')
 const zoneIndex = ref(0)
+const timeOptions = ref([])
+const timeIndex = ref(0)
 const presets = ref([])
+const repostFromOrders = ref(false)
 const form = ref({
   type: 'food',
   zoneId: '',
@@ -151,11 +162,44 @@ const nameModal = ref({
 })
 
 const zoneNames = computed(() => zones.value.map((z) => z.name))
+const timeOptionLabels = computed(() => timeOptions.value.map((o) => o.label))
+const selectedTimeLabel = computed(() => timeOptions.value[timeIndex.value]?.label || '')
+
+function refreshTimeOptions() {
+  timeOptions.value = buildDeliveryTimeOptions(new Date())
+  if (timeIndex.value >= timeOptions.value.length) timeIndex.value = 0
+}
+
+function selectAsapTime() {
+  refreshTimeOptions()
+  const idx = timeOptions.value.findIndex((o) => o.type === DELIVERY_TIME_TYPE.ASAP)
+  timeIndex.value = idx >= 0 ? idx : 0
+}
+
+function applyRepostDraft(draft) {
+  form.value = {
+    ...form.value,
+    type: draft.type || form.value.type,
+    zoneId: draft.zoneId || form.value.zoneId,
+    title: draft.title || '',
+    pickupAddress: draft.pickupAddress || '',
+    dropoffAddress: draft.dropoffAddress || '',
+    contactPhone: draft.contactPhone || form.value.contactPhone,
+    fee: draft.fee || form.value.fee,
+    description: draft.description || '',
+    remark: draft.remark || '',
+  }
+  syncZonePicker(draft.zoneId)
+  selectAsapTime()
+}
 
 onShow(init)
 
 async function init() {
   if (!ensureLogin()) return
+  const repostDraft = consumeRepostDraft()
+  if (repostDraft?.fromOrders) repostFromOrders.value = true
+  refreshTimeOptions()
   zonesLoaded.value = false
   zonesError.value = ''
   const { user } = await refreshUserAndVerify()
@@ -178,6 +222,7 @@ async function init() {
     zonesError.value = e.message || '加载配送区域失败'
   } finally {
     zonesLoaded.value = true
+    if (repostDraft) applyRepostDraft(repostDraft)
   }
 }
 
@@ -273,6 +318,9 @@ function onZone(e) {
   zoneIndex.value = Number(e.detail.value)
   form.value.zoneId = zones.value[zoneIndex.value]?._id || ''
 }
+function onTimeChange(e) {
+  timeIndex.value = Number(e.detail.value)
+}
 
 async function submit() {
   if (!form.value.zoneId) {
@@ -293,6 +341,11 @@ async function submit() {
     uni.showToast({ title: '酬劳需在 1～500 元', icon: 'none' })
     return
   }
+  const timePayload = deliveryTimePayloadFromOption(timeOptions.value[timeIndex.value])
+  if (!timePayload) {
+    uni.showToast({ title: '请选择预计送达时间', icon: 'none' })
+    return
+  }
 
   loading.value = true
   try {
@@ -306,9 +359,16 @@ async function submit() {
       fee,
       description: form.value.description.trim(),
       remark: form.value.remark.trim(),
+      ...timePayload,
     })
     uni.showToast({ title: '发布成功', icon: 'success' })
-    setTimeout(() => uni.redirectTo({ url: '/pages/delivery/orders?role=poster' }), 500)
+    setTimeout(() => {
+      if (repostFromOrders.value) {
+        uni.navigateBack()
+      } else {
+        uni.redirectTo({ url: '/pages/delivery/orders?role=poster' })
+      }
+    }, 500)
   } catch (e) {
     uni.showToast({ title: e.message || '发布失败', icon: 'none' })
   } finally {

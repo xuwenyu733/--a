@@ -94,6 +94,17 @@
       <el-form-item label="酬劳(元)" required>
         <el-input-number v-model="form.fee" :min="1" :max="500" :step="1" />
       </el-form-item>
+      <el-form-item label="预计送达" required>
+        <el-select v-model="timeIndex" placeholder="请选择送达时段" style="width:100%">
+          <el-option
+            v-for="(opt, idx) in timeOptions"
+            :key="opt.key"
+            :label="opt.label"
+            :value="idx"
+          />
+        </el-select>
+        <p v-if="!timeOptions.length" class="presets-tip">当前无可选时段（服务时间 8:00-22:00）</p>
+      </el-form-item>
       <el-form-item label="详细说明">
         <el-input v-model="form.description" type="textarea" :rows="3" placeholder="取件码、快递单号、注意事项等" />
       </el-form-item>
@@ -121,6 +132,8 @@ import {
   renamePreset,
   saveDeliveryPresets,
 } from '@/utils/deliveryPresets'
+import { buildDeliveryTimeOptions, deliveryTimePayloadFromOption, DELIVERY_TIME_TYPE } from '@/utils/deliveryTime'
+import { consumeRepostDraft } from '@/utils/deliveryRepost'
 
 const MAX_PRESETS = MAX_DELIVERY_PRESETS
 const auth = useAuthStore()
@@ -130,6 +143,9 @@ const zonesLoaded = ref(false)
 const zonesError = ref('')
 const zones = ref([])
 const presets = ref([])
+const timeOptions = ref(buildDeliveryTimeOptions())
+const timeIndex = ref(0)
+const repostFromOrders = ref(false)
 const form = ref({
   type: 'food',
   zoneId: '',
@@ -208,6 +224,28 @@ async function deletePreset(item) {
   }
 }
 
+function selectAsapTime() {
+  timeOptions.value = buildDeliveryTimeOptions()
+  const idx = timeOptions.value.findIndex((o) => o.type === DELIVERY_TIME_TYPE.ASAP)
+  timeIndex.value = idx >= 0 ? idx : 0
+}
+
+function applyRepostDraft(draft) {
+  form.value = {
+    ...form.value,
+    type: draft.type || form.value.type,
+    zoneId: draft.zoneId || form.value.zoneId,
+    title: draft.title || '',
+    pickupAddress: draft.pickupAddress || '',
+    dropoffAddress: draft.dropoffAddress || '',
+    contactPhone: draft.contactPhone || form.value.contactPhone,
+    fee: draft.fee ?? form.value.fee,
+    description: draft.description || '',
+    remark: draft.remark || '',
+  }
+  selectAsapTime()
+}
+
 async function loadZones() {
   const regionId = auth.user?.regionId?._id || auth.user?.regionId
   if (!regionId) {
@@ -226,9 +264,13 @@ async function loadZones() {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  const repostDraft = consumeRepostDraft()
+  if (repostDraft?.fromOrders) repostFromOrders.value = true
   reloadPresets()
-  loadZones()
+  timeOptions.value = buildDeliveryTimeOptions()
+  await loadZones()
+  if (repostDraft) applyRepostDraft(repostDraft)
 })
 
 async function submit() {
@@ -236,11 +278,20 @@ async function submit() {
     ElMessage.warning('请填写完整信息')
     return
   }
+  const timePayload = deliveryTimePayloadFromOption(timeOptions.value[timeIndex.value])
+  if (!timePayload) {
+    ElMessage.warning('请选择预计送达时间')
+    return
+  }
   loading.value = true
   try {
-    await deliveryApi.createDeliveryOrder(form.value)
+    await deliveryApi.createDeliveryOrder({ ...form.value, ...timePayload })
     ElMessage.success('发布成功')
-    router.push('/delivery/orders')
+    if (repostFromOrders.value) {
+      router.back()
+    } else {
+      router.push('/delivery/orders')
+    }
   } finally {
     loading.value = false
   }

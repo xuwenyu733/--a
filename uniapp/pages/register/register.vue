@@ -3,7 +3,22 @@
     <view class="card form">
       <input class="input" type="number" maxlength="11" placeholder="手机号" v-model="phone" />
       <input class="input" placeholder="昵称（可选）" v-model="nickname" />
-      <input class="input" password placeholder="密码（需含字母和数字，至少6位）" v-model="password" />
+      <view class="pwd-wrap">
+        <input
+          class="input pwd-input"
+          :password="!showPassword"
+          placeholder="密码（需含字母和数字，至少6位）"
+          :value="password"
+          @input="onPasswordInput"
+        />
+        <view class="pwd-eye" @tap="togglePassword">
+          <image
+            class="pwd-eye-img"
+            :src="showPassword ? '/static/icons/eye.png' : '/static/icons/eye-off.png'"
+            mode="aspectFit"
+          />
+        </view>
+      </view>
       <view class="code-row">
         <input class="input code-input" type="number" maxlength="6" placeholder="验证码" v-model="code" />
         <button class="code-btn" :class="{ counting: countdown > 0 }" :disabled="countdown > 0 || !phoneValid" size="mini" @tap="sendVerifyCode">
@@ -26,6 +41,7 @@ import { onSessionReady } from '@/utils/unread'
 
 const phone = ref('')
 const password = ref('')
+const showPassword = ref(false)
 const code = ref('')
 const nickname = ref('')
 const regions = ref([])
@@ -79,6 +95,14 @@ function onRegion(e) {
   regionIndex.value = Number(e.detail.value)
 }
 
+function onPasswordInput(e) {
+  password.value = e.detail.value
+}
+
+function togglePassword() {
+  showPassword.value = !showPassword.value
+}
+
 async function submit() {
   if (!phone.value || !/^1\d{10}$/.test(phone.value)) {
     uni.showToast({ title: '请填写正确的11位手机号', icon: 'none' })
@@ -120,6 +144,30 @@ async function submit() {
 
 <style lang="scss" scoped>
 .input, .picker { margin-bottom: 24rpx; }
+.pwd-wrap {
+  position: relative;
+  margin-bottom: 24rpx;
+}
+.pwd-input {
+  margin-bottom: 0;
+  padding-right: 80rpx;
+  box-sizing: border-box;
+}
+.pwd-eye {
+  position: absolute;
+  right: 16rpx;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48rpx;
+  height: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pwd-eye-img {
+  width: 40rpx;
+  height: 40rpx;
+}
 .picker { color: #606266; }
 .btn-primary { background: #409eff; color: #fff; width: 100%; }
 .code-row { display: flex; gap: 16rpx; align-items: flex-start; margin-bottom: 24rpx; }

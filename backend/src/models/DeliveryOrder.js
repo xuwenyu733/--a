@@ -29,6 +29,10 @@ const deliveryOrderSchema = new mongoose.Schema(
     cancelledBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     acceptedAt: { type: Date, default: null },
     completedAt: { type: Date, default: null },
+    deliveryTimeType: { type: String, enum: ['asap', 'slot'], default: null },
+    deliveryDeadlineStart: { type: Date, default: null },
+    deliveryDeadlineEnd: { type: Date, default: null, index: true },
+    acceptExpiredNotified: { type: Boolean, default: false },
   },
   { timestamps: true }
 )

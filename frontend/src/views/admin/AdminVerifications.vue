@@ -22,7 +22,6 @@
           <div v-if="row.type === 'courier'" class="payload">
             <p><strong>姓名：</strong>{{ row.payload?.realName }}</p>
             <p><strong>电话：</strong>{{ row.payload?.contactPhone || '—' }}</p>
-            <p><strong>服务类型：</strong>{{ formatServiceTypes(row.payload?.serviceTypes) }}</p>
             <p><strong>简介：</strong>{{ row.payload?.intro || '—' }}</p>
           </div>
           <pre v-else class="payload-json">{{ JSON.stringify(row.payload, null, 2) }}</pre>
@@ -54,8 +53,6 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import * as adminApi from '@/api/admin'
-import { COURIER_SERVICE_TYPES } from '@/constants/delivery'
-
 const list = ref([])
 const loading = ref(false)
 const error = ref('')
@@ -64,12 +61,6 @@ const filterType = ref('')
 function typeLabel(type) {
   const map = { student: '学生', merchant: '商家', courier: '骑手' }
   return map[type] || type
-}
-
-function formatServiceTypes(types) {
-  if (!types?.length) return '—'
-  const map = Object.fromEntries(COURIER_SERVICE_TYPES.map((t) => [t.value, t.label]))
-  return types.map((v) => map[v] || v).join('、')
 }
 
 async function load() {

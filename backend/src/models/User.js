@@ -5,11 +5,11 @@ const userSchema = new mongoose.Schema(
   {
     phone: { type: String, required: true, trim: true },
     password: { type: String, required: true, select: false },
-    wechatOpenId: { type: String, default: null, sparse: true, unique: true },
+    wechatOpenId: { type: String, sparse: true, unique: true },
     wechatUnionId: { type: String, default: '' },
     nickname: { type: String, default: '' },
     /** 对外可搜索的好友号（大写字母数字） */
-    friendCode: { type: String, default: null, uppercase: true, trim: true },
+    friendCode: { type: String, uppercase: true, trim: true },
     avatar: { type: String, default: '' },
     gender: { type: String, enum: ['male', 'female', 'unknown'], default: 'unknown' },
     bio: { type: String, default: '' },

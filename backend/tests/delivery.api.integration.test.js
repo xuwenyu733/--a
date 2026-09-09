@@ -117,6 +117,8 @@ describe('delivery API (integration)', () => {
     expect(own).toBeTruthy()
     expect(own.isOwnOrder).toBe(true)
     expect(own.contactPhone).toBe('')
+    expect(openRes.body.data.pagination.total).toBe(1)
+    expect(openRes.body.data.pagination.acceptableTotal).toBe(0)
 
     const acceptRes = await request(app)
       .patch(`/api/v1/delivery/orders/${orderId}/accept`)
@@ -128,5 +130,33 @@ describe('delivery API (integration)', () => {
   it('POST /api/v1/delivery/orders requires auth', async () => {
     const res = await request(app).post('/api/v1/delivery/orders').send({})
     expect(res.status).toBe(401)
+  })
+
+  it('excludes expired open orders from hall', async () => {
+    const { poster, courier, region, zone } = await seedDeliveryFixture({ suffix: 'dz6' })
+    const DeliveryOrder = (await import('../src/models/DeliveryOrder.js')).default
+    const pastEnd = new Date(Date.now() - 60000)
+    const pastStart = new Date(pastEnd.getTime() - 30 * 60000)
+    await DeliveryOrder.create({
+      regionId: region._id,
+      zoneId: zone._id,
+      posterId: poster._id,
+      type: 'express',
+      title: '过期单',
+      pickupAddress: 'A',
+      dropoffAddress: 'B',
+      contactPhone: poster.phone,
+      fee: 5,
+      status: DELIVERY_ORDER_STATUS.OPEN,
+      deliveryTimeType: 'slot',
+      deliveryDeadlineStart: pastStart,
+      deliveryDeadlineEnd: pastEnd,
+    })
+
+    const openRes = await request(app)
+      .get('/api/v1/delivery/orders/open')
+      .set(authHeader(courier))
+    expect(openRes.status).toBe(200)
+    expect(openRes.body.data.list.some((o) => o.title === '过期单')).toBe(false)
   })
 })

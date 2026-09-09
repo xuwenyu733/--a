@@ -33,7 +33,5 @@ export const submitMerchantVerifySchema = z.object({
 export const submitCourierVerifySchema = z.object({
   realName: z.string({ required_error: '请填写真实姓名' }).trim().min(1, '请填写真实姓名').max(30),
   contactPhone: phone.optional(),
-  serviceTypes: z.array(z.enum(['food', 'express', 'other'])).max(5).optional(),
   intro: z.string().max(200).optional().default(''),
-  allowedZoneIds: z.array(optionalObjectId).max(20).optional().default([]),
 })

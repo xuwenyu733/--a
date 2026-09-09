@@ -26,7 +26,6 @@
           <div v-if="row.type === 'courier'" class="payload">
             <p><strong>姓名：</strong>{{ row.payload?.realName }}</p>
             <p><strong>电话：</strong>{{ row.payload?.contactPhone || '—' }}</p>
-            <p><strong>服务类型：</strong>{{ formatServiceTypes(row.payload?.serviceTypes) }}</p>
             <p><strong>简介：</strong>{{ row.payload?.intro || '—' }}</p>
           </div>
           <pre v-else class="payload-json">{{ JSON.stringify(row.payload, null, 2) }}</pre>
@@ -64,8 +63,6 @@ import { ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import * as agentApi from '@/api/agent'
-import { COURIER_SERVICE_TYPES } from '@/constants/delivery'
-
 const route = useRoute()
 const list = ref([])
 const loading = ref(false)
@@ -75,12 +72,6 @@ const filterStatus = ref('pending')
 const rejectVisible = ref(false)
 const rejectReason = ref('')
 const currentId = ref('')
-
-function formatServiceTypes(types) {
-  if (!types?.length) return '—'
-  const map = Object.fromEntries(COURIER_SERVICE_TYPES.map((t) => [t.value, t.label]))
-  return types.map((v) => map[v] || v).join('、')
-}
 
 function formatTime(t) {
   if (!t) return ''

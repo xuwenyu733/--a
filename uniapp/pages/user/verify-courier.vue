@@ -52,21 +52,6 @@
       <text class="label">联系电话</text>
       <input class="input" type="number" v-model="form.contactPhone" :placeholder="user?.phone || ''" />
 
-      <text class="label">服务类型</text>
-      <checkbox-group @change="onServiceTypes">
-        <label v-for="t in COURIER_SERVICE_TYPES" :key="t.value" class="check-row">
-          <checkbox :value="t.value" :checked="form.serviceTypes.includes(t.value)" /> {{ t.label }}
-        </label>
-      </checkbox-group>
-
-      <text class="label">服务区域（不选则服务全校配送区）</text>
-      <checkbox-group v-if="zones.length" @change="onZones">
-        <label v-for="z in zones" :key="z._id" class="check-row">
-          <checkbox :value="z._id" :checked="form.allowedZoneIds.includes(z._id)" /> {{ z.name }}
-        </label>
-      </checkbox-group>
-      <text v-else class="muted">暂无可用区域</text>
-
       <text class="label">个人简介</text>
       <textarea class="textarea" v-model="form.intro" placeholder="可选：空闲时间、配送经验等" />
 
@@ -83,7 +68,6 @@ import { getDeliveryZones } from '@/api/delivery'
 import { ensureLogin } from '@/utils/auth'
 import { refreshUserAndVerify, formatVerifyTime } from '@/utils/verify'
 import { COURIER_VERIFY_BENEFITS } from '@/constants/verify'
-import { COURIER_SERVICE_TYPES } from '@/constants/delivery'
 import LoadState from '@/components/LoadState.vue'
 
 const loading = ref(false)
@@ -94,8 +78,6 @@ const zones = ref([])
 const form = ref({
   realName: '',
   contactPhone: '',
-  serviceTypes: ['food', 'express'],
-  allowedZoneIds: [],
   intro: '',
 })
 const benefits = COURIER_VERIFY_BENEFITS
@@ -157,27 +139,13 @@ function prefillForm() {
   form.value = {
     realName: payload.realName || '',
     contactPhone: payload.contactPhone || user.value?.phone || '',
-    serviceTypes: payload.serviceTypes?.length ? payload.serviceTypes : ['food', 'express'],
-    allowedZoneIds: payload.allowedZoneIds || [],
     intro: payload.intro || '',
   }
-}
-
-function onServiceTypes(e) {
-  form.value.serviceTypes = e.detail.value
-}
-
-function onZones(e) {
-  form.value.allowedZoneIds = e.detail.value
 }
 
 async function submit() {
   if (!form.value.realName?.trim()) {
     uni.showToast({ title: '请填写真实姓名', icon: 'none' })
-    return
-  }
-  if (!form.value.serviceTypes.length) {
-    uni.showToast({ title: '请至少选择一种服务类型', icon: 'none' })
     return
   }
   loading.value = true

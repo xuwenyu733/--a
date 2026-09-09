@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 /**
- * 安全同步编译产物到 unpackage（避免 rm -rf 导致微信开发者工具 loader 报错）
+ * 安全同步编译产物到 unpackage（跨平台，Windows 可用）
  * 用法：node scripts/sync-mp-weixin.js [dev|build]
  */
-const { execSync } = require('child_process')
 const fs = require('fs')
 const path = require('path')
 
@@ -13,30 +12,23 @@ const SRC = path.join(ROOT, `dist/${mode}/mp-weixin`)
 const DEST = path.join(ROOT, 'unpackage/dist/dev/mp-weixin')
 const STATIC = path.join(ROOT, 'static')
 
+function copyTree(src, dest) {
+  fs.mkdirSync(dest, { recursive: true })
+  fs.cpSync(src, dest, { recursive: true, force: true })
+}
+
 if (!fs.existsSync(SRC)) {
   console.error(`[sync] 源目录不存在: ${SRC}`)
   console.error('请先运行: npm run dev:mp-weixin  或  npm run build:mp-weixin')
   process.exit(1)
 }
 
-fs.mkdirSync(path.dirname(DEST), { recursive: true })
-
-// rsync 增量同步，不先删整个目录，减少微信工具 loader timeout
-try {
-  execSync(`rsync -a --delete "${SRC}/" "${DEST}/"`, { stdio: 'inherit' })
-} catch {
-  // 无 rsync 时回退到 cp
-  fs.mkdirSync(DEST, { recursive: true })
-  execSync(`cp -R "${SRC}/." "${DEST}/"`, { stdio: 'inherit' })
-}
+copyTree(SRC, DEST)
 
 if (fs.existsSync(STATIC)) {
-  const destStatic = path.join(DEST, 'static')
-  fs.mkdirSync(destStatic, { recursive: true })
-  execSync(`cp -R "${STATIC}/." "${destStatic}/"`, { stdio: 'inherit' })
+  copyTree(STATIC, path.join(DEST, 'static'))
 }
 
-// 校验：app.js 应为精简入口（仅 export createApp），若被微信工具改坏会膨胀并内联 mount
 const appJs = path.join(DEST, 'app.js')
 const appContent = fs.readFileSync(appJs, 'utf8')
 if (appContent.length > 500 && /mount\s*\(\s*['"]#app['"]\s*\)/.test(appContent)) {
@@ -45,7 +37,6 @@ if (appContent.length > 500 && /mount\s*\(\s*['"]#app['"]\s*\)/.test(appContent)
   process.exit(1)
 }
 
-// 合并项目私有配置（避免微信工具用旧 minified 设置）
 const privateCfg = path.join(ROOT, 'project.private.config.json')
 if (fs.existsSync(privateCfg)) {
   fs.copyFileSync(privateCfg, path.join(DEST, 'project.private.config.json'))

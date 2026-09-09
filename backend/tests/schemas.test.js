@@ -130,15 +130,26 @@ describe('admin schemas', () => {
 })
 
 describe('delivery schemas', () => {
-  it('createDeliveryOrderSchema requires addresses and fee', () => {
+  it('createDeliveryOrderSchema requires addresses, fee and delivery time', () => {
     const ok = createDeliveryOrderSchema.safeParse({
       zoneId: '507f1f77bcf86cd799439011',
       type: 'food',
       pickupAddress: '1号公寓',
       dropoffAddress: '图书馆',
       fee: 5,
+      deliveryTimeType: 'slot',
+      deliveryDeadlineStart: '2026-09-08T12:30:00.000Z',
+      deliveryDeadlineEnd: '2026-09-08T13:00:00.000Z',
     })
     expect(ok.success).toBe(true)
+    const missing = createDeliveryOrderSchema.safeParse({
+      zoneId: '507f1f77bcf86cd799439011',
+      type: 'food',
+      pickupAddress: '1号公寓',
+      dropoffAddress: '图书馆',
+      fee: 5,
+    })
+    expect(missing.success).toBe(false)
   })
 
   it('updateDeliveryOrderStatusSchema rejects open status', () => {

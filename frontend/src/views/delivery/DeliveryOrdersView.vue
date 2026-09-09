@@ -24,12 +24,15 @@
     <div v-for="item in orders" :key="item._id" class="order-card">
       <div class="order-card__top">
         <el-tag size="small">{{ typeLabel(item.type) }}</el-tag>
-        <el-tag :type="statusTag(item.status)" size="small">{{ DELIVERY_ORDER_STATUS[item.status] }}</el-tag>
+        <el-tag :type="deliveryStatusTagType(item)" size="small">{{ deliveryOrderStatusLabel(item) }}</el-tag>
         <span class="fee">¥{{ item.fee }}</span>
       </div>
       <p><strong>区域：</strong>{{ item.zoneId?.name }}</p>
       <p><strong>取：</strong>{{ item.pickupAddress }}</p>
       <p><strong>送：</strong>{{ item.dropoffAddress }}</p>
+      <p v-if="item.deliveryTimeLabel"><strong>预计送达：</strong>{{ item.deliveryTimeLabel }}</p>
+      <p><strong>实际送达：</strong>{{ item.actualDeliveryLabel || '--' }}</p>
+      <p v-if="roleTab === 'courier' && item.deliveryOverdue" class="warn">已超时</p>
       <p v-if="item.contactPhone"><strong>联系电话：</strong>{{ item.contactPhone }}</p>
       <p v-if="item.courierId && roleTab === 'poster'">
         <strong>骑手：</strong>{{ item.courierId?.nickname || item.courierId?.phone }}
@@ -38,6 +41,13 @@
         <strong>发布人：</strong>{{ item.posterId?.nickname || item.posterId?.phone }}
       </p>
       <div class="actions">
+        <el-button
+          v-if="canRepost(item)"
+          size="small"
+          @click="goRepost(item)"
+        >
+          修改
+        </el-button>
         <el-button
           v-if="canCancel(item)"
           size="small"
@@ -69,14 +79,16 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import * as deliveryApi from '@/api/delivery'
-import { DELIVERY_ORDER_TYPES, DELIVERY_ORDER_STATUS } from '@/constants/delivery'
+import { DELIVERY_ORDER_TYPES, deliveryOrderStatusLabel, deliveryStatusTagType } from '@/constants/delivery'
+import { saveRepostDraft } from '@/utils/deliveryRepost'
 
 const auth = useAuthStore()
 const route = useRoute()
+const router = useRouter()
 const loading = ref(false)
 const error = ref('')
 const orders = ref([])
@@ -86,14 +98,19 @@ function typeLabel(type) {
   return DELIVERY_ORDER_TYPES.find((t) => t.value === type)?.label || type
 }
 
-function statusTag(status) {
-  const map = { open: 'info', accepted: 'warning', delivering: 'primary', completed: 'success', cancelled: 'info' }
-  return map[status] || 'info'
-}
-
 function canCancel(item) {
+  if (item.acceptExpired || item.systemAcceptExpired) return false
   return ['open', 'accepted'].includes(item.status) &&
     ((roleTab.value === 'poster') || (roleTab.value === 'courier' && item.courierId))
+}
+
+function canRepost(item) {
+  return roleTab.value === 'poster' && item.status === 'cancelled'
+}
+
+function goRepost(item) {
+  saveRepostDraft(item)
+  router.push('/delivery/post')
 }
 
 async function load() {
@@ -168,6 +185,10 @@ onMounted(load)
 .order-card p {
   margin: 4px 0;
   font-size: 14px;
+}
+.warn {
+  color: #f56c6c;
+  font-weight: 600;
 }
 .actions {
   margin-top: 12px;

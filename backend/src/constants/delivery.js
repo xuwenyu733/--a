@@ -18,6 +18,9 @@ export const DELIVERY_ORDER_STATUS = {
   CANCELLED: 'cancelled',
 }
 
+/** 超时未接单由系统自动取消时写入 cancelReason */
+export const DELIVERY_SYSTEM_CANCEL_ACCEPT_EXPIRED = '系统：超过预计送达时间未接单'
+
 export const DELIVERY_ORDER_STATUS_LABELS = {
   open: '待接单',
   accepted: '已接单',
