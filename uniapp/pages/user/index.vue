@@ -158,6 +158,23 @@
         </view>
       </view>
 
+      <!-- 关于与协议（未登录也可看） -->
+      <view class="menu-card">
+        <view class="menu-head">
+          <text class="menu-head-title">关于校园市集</text>
+        </view>
+        <view class="menu-item" @tap="goTerms">
+          <text class="menu-icon">📄</text>
+          <text class="menu-label">用户协议</text>
+          <text class="menu-arrow">›</text>
+        </view>
+        <view class="menu-item" @tap="goPrivacy">
+          <text class="menu-icon">🔒</text>
+          <text class="menu-label">隐私政策</text>
+          <text class="menu-arrow">›</text>
+        </view>
+      </view>
+
       <!-- 底部按钮 -->
       <view v-if="loggedIn" class="logout-wrap">
         <view class="logout-btn" @tap="logout">退出登录</view>
@@ -373,6 +390,8 @@ function goVerifyMerchant() { if (ensureLogin()) uni.navigateTo({ url: '/pages/u
 function goVerifyCourier() { if (ensureLogin()) uni.navigateTo({ url: '/pages/user/verify-courier' }) }
 function goShopSettings() { if (ensureLogin()) uni.navigateTo({ url: '/pages/user/shop-settings' }) }
 function goSettings() { if (ensureLogin()) uni.navigateTo({ url: '/pages/user/settings' }) }
+function goTerms() { uni.navigateTo({ url: '/pages/legal/doc?kind=terms' }) }
+function goPrivacy() { uni.navigateTo({ url: '/pages/legal/doc?kind=privacy' }) }
 
 function logout() {
   uni.showModal({

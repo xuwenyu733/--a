@@ -28,6 +28,15 @@
       <picker mode="selector" :range="regionNames" @change="onRegion">
         <view class="picker">校区：{{ regionNames[regionIndex] || '请选择' }}</view>
       </picker>
+      <view class="agree-row" @tap="agreed = !agreed">
+        <view class="agree-box" :class="{ on: agreed }" />
+        <text class="agree-text">
+          我已阅读并同意
+          <text class="agree-link" @tap.stop="openTerms">《用户协议》</text>
+          与
+          <text class="agree-link" @tap.stop="openPrivacy">《隐私政策》</text>
+        </text>
+      </view>
       <button class="btn-primary btn-block" :loading="loading" @tap="submit">注册</button>
     </view>
   </view>
@@ -49,6 +58,7 @@ const regionNames = ref([])
 const regionIndex = ref(0)
 const loading = ref(false)
 const countdown = ref(0)
+const agreed = ref(false)
 let countdownTimer = null
 
 const phoneValid = computed(() => /^1\d{10}$/.test(phone.value))
@@ -103,6 +113,14 @@ function togglePassword() {
   showPassword.value = !showPassword.value
 }
 
+function openTerms() {
+  uni.navigateTo({ url: '/pages/legal/doc?kind=terms' })
+}
+
+function openPrivacy() {
+  uni.navigateTo({ url: '/pages/legal/doc?kind=privacy' })
+}
+
 async function submit() {
   if (!phone.value || !/^1\d{10}$/.test(phone.value)) {
     uni.showToast({ title: '请填写正确的11位手机号', icon: 'none' })
@@ -114,6 +132,10 @@ async function submit() {
   }
   if (!code.value) {
     uni.showToast({ title: '请填写验证码', icon: 'none' })
+    return
+  }
+  if (!agreed.value) {
+    uni.showToast({ title: '请先同意用户协议与隐私政策', icon: 'none' })
     return
   }
   const regionId = regions.value[regionIndex.value]?._id
@@ -169,6 +191,34 @@ async function submit() {
   height: 40rpx;
 }
 .picker { color: #606266; }
+.agree-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16rpx;
+  margin-bottom: 28rpx;
+}
+.agree-box {
+  width: 32rpx;
+  height: 32rpx;
+  margin-top: 6rpx;
+  border: 2rpx solid #c0c4cc;
+  border-radius: 6rpx;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+.agree-box.on {
+  background: #409eff;
+  border-color: #409eff;
+}
+.agree-text {
+  flex: 1;
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: #606266;
+}
+.agree-link {
+  color: #409eff;
+}
 .btn-primary { background: #409eff; color: #fff; width: 100%; }
 .code-row { display: flex; gap: 16rpx; align-items: flex-start; margin-bottom: 24rpx; }
 .code-input { flex: 1; margin-bottom: 0; }

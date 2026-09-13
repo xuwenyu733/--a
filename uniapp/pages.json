@@ -181,6 +181,12 @@
       }
     },
     {
+      "path": "pages/legal/doc",
+      "style": {
+        "navigationBarTitleText": "协议"
+      }
+    },
+    {
       "path": "pages/auth/wechat-setup",
       "style": {
         "navigationBarTitleText": "完善信息"
