@@ -30,6 +30,14 @@
             <el-option v-for="r in regions" :key="r._id" :label="r.name" :value="r._id" />
           </el-select>
         </el-form-item>
+        <el-form-item prop="agreed">
+          <el-checkbox v-model="form.agreed">
+            我已阅读并同意
+            <router-link to="/terms" target="_blank" @click.stop>用户协议</router-link>
+            与
+            <router-link to="/privacy" target="_blank" @click.stop>隐私政策</router-link>
+          </el-checkbox>
+        </el-form-item>
         <el-button type="primary" :loading="loading" style="width:100%" @click="handleRegister">注册</el-button>
       </el-form>
       <p class="tip">已有账号？<router-link to="/login">去登录</router-link></p>
@@ -50,12 +58,18 @@ const formRef = ref()
 const loading = ref(false)
 const countdown = ref(0)
 const regions = ref([])
-const form = ref({ phone: '', code: '123456', password: '', nickname: '', regionId: '' })
+const form = ref({ phone: '', code: '123456', password: '', nickname: '', regionId: '', agreed: false })
 const rules = {
   phone: [{ required: true, message: '请输入手机号' }],
   code: [{ required: true, message: '请输入验证码' }],
   password: [{ required: true, min: 6, message: '密码至少6位' }],
   regionId: [{ required: true, message: '请选择区域' }],
+  agreed: [
+    {
+      validator: (_r, v, cb) => (v ? cb() : cb(new Error('请先阅读并同意用户协议与隐私政策'))),
+      trigger: 'change',
+    },
+  ],
 }
 
 onMounted(async () => {

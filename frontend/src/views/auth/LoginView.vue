@@ -34,6 +34,11 @@
         <el-button type="primary" native-type="submit" :loading="loading" style="width:100%">登录</el-button>
       </el-form>
       <p class="tip">还没有账号？<router-link to="/register">立即注册</router-link></p>
+      <p class="tip legal-links">
+        <router-link to="/terms">用户协议</router-link>
+        ·
+        <router-link to="/privacy">隐私政策</router-link>
+      </p>
       <el-divider>测试账号</el-divider>
       <div class="test-accounts">
         <el-tag @click="fill('13800000000','admin123456')">超管</el-tag>

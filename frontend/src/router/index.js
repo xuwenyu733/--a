@@ -19,6 +19,20 @@ const routes = [
     meta: { guest: true },
   },
   {
+    path: '/privacy',
+    name: 'Privacy',
+    component: () => import('@/views/legal/LegalDocView.vue'),
+    props: { kind: 'privacy' },
+    meta: { title: '隐私政策' },
+  },
+  {
+    path: '/terms',
+    name: 'Terms',
+    component: () => import('@/views/legal/LegalDocView.vue'),
+    props: { kind: 'terms' },
+    meta: { title: '用户服务协议' },
+  },
+  {
     path: '/',
     component: () => import('@/layouts/UserLayout.vue'),
     children: [
