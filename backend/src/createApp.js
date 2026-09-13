@@ -23,10 +23,21 @@ export function createApp(opts = {}) {
   const isProd = process.env.NODE_ENV === 'production'
   if (isProd) app.set('trust proxy', 1)
   const corsOrigin = isProd && config.corsOrigins?.length ? config.corsOrigins : true
+  // 仅在对外已是 HTTPS 时启用 HSTS / upgrade-insecure-requests
+  // 否则浏览器会强制跳 https，而 IP 未配证书时静态资源全部 ERR_CONNECTION_CLOSED
+  const forceHttps = /^https:\/\//i.test(process.env.PUBLIC_BASE_URL || '')
 
   app.use(
     helmet({
-      contentSecurityPolicy: isProd ? undefined : false,
+      contentSecurityPolicy: isProd
+        ? {
+            useDefaults: true,
+            directives: {
+              upgradeInsecureRequests: forceHttps ? [] : null,
+            },
+          }
+        : false,
+      hsts: forceHttps,
       crossOriginResourcePolicy: { policy: 'cross-origin' },
     })
   )

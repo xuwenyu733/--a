@@ -15,11 +15,12 @@ export function setGuestRegion(id) {
 }
 
 export async function ensureGuestRegion() {
-  let rid = getRegionId()
-  if (rid) return rid
   try {
     const regions = await request({ url: '/regions', timeout: 10000 })
     if (!regions?.length) return ''
+    // 已登录用户所属区域优先，但必须在当前后端区域列表里（避免换库/换服务器后旧 id 查空）
+    const current = getRegionId()
+    if (current && regions.some((r) => r._id === current)) return current
     const stored = uni.getStorageSync(GUEST_REGION_KEY)
     if (stored && regions.some((r) => r._id === stored)) return stored
     setGuestRegion(regions[0]._id)

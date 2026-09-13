@@ -12,13 +12,17 @@ const PROD_HOST = 'your-domain.com' // 上线前替换
 const apiHost = import.meta.env.VITE_API_HOST
 const useProd = import.meta.env.VITE_USE_PROD_API === 'true'
 
-const host = apiHost || (useProd ? PROD_HOST : DEV_HOST)
+const host = (apiHost || (useProd ? PROD_HOST : DEV_HOST)).replace(/^https?:\/\//i, '')
 
+// 本机 / 内网 / 纯 IP（备案前用服务器公网 IP）走 http；有域名后再用 https
+const hostName = host.split(':')[0]
+const isPlainIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(hostName)
 const isLocal =
   host.includes('127.0.0.1') ||
   host.includes('localhost') ||
   host.startsWith('192.168.') ||
-  host.startsWith('10.')
+  host.startsWith('10.') ||
+  isPlainIp
 
 const protocol = isLocal ? 'http' : 'https'
 const wsProtocol = isLocal ? 'ws' : 'wss'
