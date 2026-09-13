@@ -17,7 +17,7 @@
     </swiper>
 
     <view class="hero card">
-      <text class="hero-title">🎓 校园生活服务平台</text>
+      <text class="hero-title">🎓 校园市集</text>
       <text class="hero-sub muted">二手 · 跑腿 · 简历 · 仅限本校师生</text>
       <view class="entry-grid">
         <view class="entry-item" @tap="goMarket">
@@ -117,7 +117,7 @@ const loggedIn = ref(false)
 let firstShow = true
 
 const DEFAULT_BANNERS = [
-  { title: '校园二手', subtitle: '本校面交 · 零手续费', link: '/pages/products/list' },
+  { title: '闲置交易', subtitle: '本校面交 · 零手续费', link: '/pages/products/list' },
   { title: '校园跑腿', subtitle: '外卖代取 · 快递代取', link: '/pages/delivery/index' },
 ]
 

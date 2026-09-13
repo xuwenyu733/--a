@@ -59,7 +59,7 @@ export async function drawProductSharePoster(canvas, product) {
   ctx.fillRect(24, 24, W - 48, H - 48)
   ctx.fillStyle = '#1a5f4a'
   ctx.font = 'bold 22px system-ui, sans-serif'
-  ctx.fillText('校园二手 · 好物分享', 40, 58)
+  ctx.fillText('校园市集 · 好物分享', 40, 58)
 
   const imgY = 72
   const imgH = 320

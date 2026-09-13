@@ -8,7 +8,7 @@ const DEFAULT_CONFIG = {
     { title: '本校交易 · 当面验货', subtitle: '零手续费，安全可信', image: '', link: '/pages/products/list' },
     { title: '学生认证保障', subtitle: '学号认证，远离诈骗', image: '', link: '/pages/register/register' },
   ],
-  announcement: '欢迎使用校园二手交易平台，请勿脱离平台交易。',
+  announcement: '欢迎使用校园市集，请勿脱离平台交易。',
 }
 
 export async function getPublicConfig(SystemConfig) {

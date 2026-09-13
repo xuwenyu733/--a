@@ -1,6 +1,5 @@
-const SITE_NAME = '校园生活服务平台'
-const DEFAULT_DESC =
-  '校园生活服务平台 — 二手交易、跑腿配送、简历优化，服务高校师生的综合平台。'
+const SITE_NAME = '校园市集'
+const DEFAULT_DESC = '校园市集 — 二手交易、跑腿配送、简历优化，服务高校师生。'
 
 function setMetaTag(attr, key, content) {
   if (!content) return

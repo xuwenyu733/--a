@@ -22,7 +22,7 @@ export function createTemplateDemoForm() {
     ],
     projects: [
       {
-        name: '校园二手交易平台',
+        name: '校园市集交易平台',
         targetRole: '个人开发（前后端）',
         description:
           '面向在校学生的二手交易与生活服务平台，支持商品发布、即时聊天、校园跑腿与 AI 简历等模块。',

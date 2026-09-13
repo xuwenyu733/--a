@@ -89,9 +89,9 @@ let shareImages = []
 
 export default {
   onShareAppMessage() {
-    if (!shareProduct) return { title: '校园二手', path: '/pages/index/index' }
+    if (!shareProduct) return { title: '校园市集', path: '/pages/index/index' }
     return {
-      title: shareProduct.title || '校园二手',
+      title: shareProduct.title || '校园市集',
       path: `/pages/products/detail?id=${shareProduct._id}`,
       imageUrl: shareImages[0] || '',
     }

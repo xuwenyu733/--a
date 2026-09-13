@@ -1,6 +1,6 @@
 <template>
   <view class="container login-page">
-    <text class="logo">🎓 校园二手</text>
+    <text class="logo">🎓 校园市集</text>
 
     <button class="wx-btn" :loading="wxLoading" @tap="wechatLogin">
       微信一键登录

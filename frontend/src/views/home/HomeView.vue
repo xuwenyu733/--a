@@ -16,7 +16,7 @@
     <section class="service-grid">
       <el-card class="service-card service-card--trade" shadow="hover" @click="$router.push('/products')">
         <div class="service-icon">🛒</div>
-        <h2>校园二手</h2>
+        <h2>闲置交易</h2>
         <p>本校闲置交易 · 当面验货 · 即时聊天 · 零手续费</p>
         <el-button type="primary">进入市集</el-button>
       </el-card>
@@ -39,7 +39,7 @@
     </section>
 
     <el-card class="hero">
-      <h1>校园生活服务平台</h1>
+      <h1>校园市集</h1>
       <p>交易与求职一站搞定 · 仅限本校师生与认证商家</p>
       <div class="actions">
         <el-button type="primary" size="large" @click="$router.push('/products')">浏览商品</el-button>

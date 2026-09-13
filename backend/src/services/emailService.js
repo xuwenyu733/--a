@@ -53,7 +53,7 @@ export async function sendNotificationEmail(user, { title, content }) {
   if (!email) return false
   return sendMail({
     to: email,
-    subject: `[校园二手] ${title}`,
-    text: `${title}\n\n${content || ''}\n\n— 校园生活服务平台`,
+    subject: `[校园市集] ${title}`,
+    text: `${title}\n\n${content || ''}\n\n— 校园市集`,
   })
 }

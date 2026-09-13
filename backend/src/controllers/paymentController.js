@@ -93,7 +93,7 @@ export async function sandboxPayPage(req, res) {
   try {
     const tx = await paymentService.getSandboxPayPage(req.query.no)
     if (!tx) return res.status(404).send('支付单不存在')
-    const html = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>沙箱支付</title><style>body{font-family:system-ui,sans-serif;max-width:420px;margin:40px auto;padding:0 16px}h1{font-size:20px}.amt{color:#f56c6c;font-size:28px;font-weight:700}p{color:#606266;line-height:1.6}.tip{background:#ecf5ff;padding:12px;border-radius:8px;font-size:14px}</style></head><body><h1>校园二手 · 沙箱支付</h1><p>支付单号：<code>${tx.paymentNo}</code></p><p class="amt">¥${tx.amount}</p><p>渠道：${tx.channel === 'wechat' ? '微信支付' : '支付宝'}</p><div class="tip">此为开发环境模拟页。请返回订单页点击「模拟支付成功」，或调用 API：<code>POST /api/payments/${tx.paymentNo}/simulate</code></div></body></html>`
+    const html = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>沙箱支付</title><style>body{font-family:system-ui,sans-serif;max-width:420px;margin:40px auto;padding:0 16px}h1{font-size:20px}.amt{color:#f56c6c;font-size:28px;font-weight:700}p{color:#606266;line-height:1.6}.tip{background:#ecf5ff;padding:12px;border-radius:8px;font-size:14px}</style></head><body><h1>校园市集 · 沙箱支付</h1><p>支付单号：<code>${tx.paymentNo}</code></p><p class="amt">¥${tx.amount}</p><p>渠道：${tx.channel === 'wechat' ? '微信支付' : '支付宝'}</p><div class="tip">此为开发环境模拟页。请返回订单页点击「模拟支付成功」，或调用 API：<code>POST /api/payments/${tx.paymentNo}/simulate</code></div></body></html>`
     res.type('html').send(html)
   } catch {
     res.status(500).send('error')

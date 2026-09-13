@@ -252,7 +252,7 @@ async function handleGenerate() {
             />
           </div>
           <el-form-item label="项目名称">
-            <el-input v-model="proj.name" placeholder="校园二手交易平台" />
+            <el-input v-model="proj.name" placeholder="校园市集交易平台" />
           </el-form-item>
           <el-form-item label="项目角色 / 类型">
             <el-input

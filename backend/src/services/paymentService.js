@@ -167,7 +167,7 @@ export async function createOnlinePayment(orderId, buyerId, { channel }) {
   const prepay = await gateway.createPrepay({
     paymentNo,
     amount: order.price,
-    title: order.productId?.title || '校园二手商品',
+    title: order.productId?.title || '校园市集商品',
     expireAt: expiredAt,
     openid,
   })
