@@ -59,7 +59,7 @@
       <!-- 服务 -->
       <view class="menu-card">
         <view class="menu-head">
-          <text class="menu-head-title">校园服务</text>
+          <text class="menu-head-title">校园市集</text>
         </view>
         <view class="menu-item" @tap="goFriendSearch">
           <image class="menu-icon-img" :src="menuIcon('add-friend')" mode="aspectFit" />
