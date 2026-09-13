@@ -9,7 +9,7 @@
         @click="drawerVisible = true"
       />
       <div class="logo" role="button" tabindex="0" aria-label="返回首页" @click="$router.push('/')" @keyup.enter="$router.push('/')">
-        <span class="logo-title">🎓 校园服务</span>
+        <span class="logo-title">🎓 校园市集</span>
         <span class="logo-sub">二手 · 简历 · 跑腿</span>
       </div>
       <el-menu
