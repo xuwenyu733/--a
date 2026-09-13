@@ -309,8 +309,8 @@ async function handleOrder() {
     orderDialogVisible.value = false
     orderUseGroupPrice.value = false
     router.push('/user/orders')
-  } catch (e) {
-    ElMessage.error(e.message || '下单失败')
+  } catch {
+    // 全局 request 拦截器已提示业务错误（如「已有进行中的订单」）
   } finally {
     ordering.value = false
   }

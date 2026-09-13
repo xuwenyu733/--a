@@ -8,6 +8,15 @@ export function fail(res, code, message, status = 400) {
   return res.status(status).json({ code, message, data: null })
 }
 
+/** Map business error codes (40000/40301/40900…) to HTTP status */
+export function httpStatusFromBizCode(code) {
+  if (code === 40400) return 404
+  if (code === 40900) return 409
+  if (code >= 40300 && code < 40400) return 403
+  if (code >= 40100 && code < 40200) return 401
+  return 400
+}
+
 export const ErrorCodes = {
   BAD_REQUEST: 40000,
   UNAUTHORIZED: 40100,
