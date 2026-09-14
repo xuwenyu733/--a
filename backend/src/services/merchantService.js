@@ -43,8 +43,6 @@ export async function getMerchantStats(userId) {
     recentOrders,
     weekCompletedOrders,
     categoryAgg,
-    groupBuyOpen,
-    groupBuySuccess,
   ] = await Promise.all([
     Product.countDocuments(activeProductFilter({ sellerId: userId })),
     Product.countDocuments(activeProductFilter({ sellerId: userId, status: 'on_sale' })),
@@ -74,12 +72,6 @@ export async function getMerchantStats(userId) {
       },
       { $group: { _id: '$category', count: { $sum: 1 } } },
     ]),
-    Product.countDocuments(
-      activeProductFilter({ sellerId: userId, status: 'on_sale', 'groupBuy.enabled': true, 'groupBuy.status': 'open' })
-    ),
-    Product.countDocuments(
-      activeProductFilter({ sellerId: userId, 'groupBuy.enabled': true, 'groupBuy.status': 'success' })
-    ),
   ])
 
   const revenue = revenueAgg[0]?.total || 0
@@ -117,7 +109,6 @@ export async function getMerchantStats(userId) {
         }
       : null,
     products: { total: productTotal, onSale: productOnSale },
-    groupBuy: { open: groupBuyOpen, success: groupBuySuccess },
     orders: {
       pending: orderPending,
       confirmed: orderConfirmed,

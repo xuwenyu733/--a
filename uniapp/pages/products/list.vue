@@ -74,9 +74,6 @@
                 :class="{ active: sort === s.value }"
                 @tap="setSort(s.value)"
               >{{ s.label }}</view>
-              <view class="chip chip-special" :class="{ active: groupBuyOnly }" @tap="toggleGroupBuy">
-                🛒 拼单
-              </view>
             </view>
           </scroll-view>
         </view>
@@ -131,7 +128,6 @@ const products = ref([])
 const keyword = ref('')
 const category = ref('')
 const sort = ref('createdAt')
-const groupBuyOnly = ref(false)
 const page = ref(1)
 const total = ref(0)
 const hasMore = ref(true)
@@ -190,7 +186,6 @@ onShow(() => {
   if (filter) {
     uni.removeStorageSync('market_filter')
     if (filter.sort) sort.value = filter.sort
-    if (filter.groupBuyOnly != null) groupBuyOnly.value = !!filter.groupBuyOnly
     if (filter.keyword != null) keyword.value = String(filter.keyword)
     loadProducts(true)
   }
@@ -198,7 +193,6 @@ onShow(() => {
 
 function applyOptions(options = {}) {
   if (options.sort) sort.value = options.sort
-  if (options.groupBuy === '1') groupBuyOnly.value = true
 }
 
 /** 下拉刷新防抖 */
@@ -244,11 +238,6 @@ function setSort(val) {
   sort.value = val
   loadProducts(true)
 }
-function toggleGroupBuy() {
-  groupBuyOnly.value = !groupBuyOnly.value
-  loadProducts(true)
-}
-
 async function loadProducts(reset) {
   if (fetching) return
   if (!reset && (!hasMore.value || loadingMore.value)) return
@@ -276,7 +265,6 @@ async function loadProducts(reset) {
     }
     if (keyword.value.trim()) params.keyword = keyword.value.trim()
     if (category.value) params.category = category.value
-    if (groupBuyOnly.value) params.groupBuyOnly = true
     const res = await getProducts(params)
     const list = (res.list || []).map((p) => ({
       ...p,
@@ -514,11 +502,6 @@ async function loadProducts(reset) {
   color: #fff;
   border-color: transparent;
   box-shadow: 0 4rpx 12rpx rgba(64, 158, 255, 0.3);
-}
-
-.chip-special.active {
-  background: linear-gradient(135deg, #e6a23c, #f56c6c);
-  box-shadow: 0 4rpx 12rpx rgba(230, 162, 60, 0.35);
 }
 
 .result-bar {

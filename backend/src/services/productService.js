@@ -11,23 +11,21 @@ import { activeProductFilter } from '../utils/productQuery.js'
 import { notifyUser } from './notificationService.js'
 import * as browseHistoryService from './browseHistoryService.js'
 import { buildProductSearchText } from '../utils/productPinyin.js'
-import { normalizeGroupBuyInput, getGroupBuySummary } from './groupBuyService.js'
 export { toggleFavorite, listFavorites } from './favoriteService.js'
 export { getRecommendations } from './recommendationService.js'
 
 const PRODUCT_CREATE_FIELDS = [
   'title',
   'description',
-  'tradeMode',
   'price',
   'originalPrice',
+  'stock',
   'category',
   'images',
   'videos',
   'condition',
   'location',
   'tags',
-  'groupBuy',
 ]
 
 function pickAllowedFields(body, allowed) {
@@ -41,23 +39,38 @@ function pickAllowedFields(body, allowed) {
 /** 发布商品时清洗/补全字段（纯逻辑，便于单测） */
 export function prepareProductCreateFields(body) {
   const safeBody = pickAllowedFields(body, PRODUCT_CREATE_FIELDS)
-  if (safeBody.tradeMode === 'exchange' && safeBody.price == null) {
-    safeBody.price = 0
-  }
   if (safeBody.title) {
     safeBody.searchText = buildProductSearchText(safeBody.title)
   }
-  const price = safeBody.price ?? 0
-  if (safeBody.tradeMode === 'exchange') {
-    safeBody.groupBuy = { enabled: false, minCount: 2, groupPrice: 0, status: 'open', participants: [] }
-  } else if (safeBody.groupBuy !== undefined) {
-    safeBody.groupBuy = normalizeGroupBuyInput(safeBody.groupBuy, price)
-  }
+  const stock = Number(safeBody.stock)
+  safeBody.stock = Number.isInteger(stock) && stock >= 1 ? stock : 1
   return safeBody
 }
 
 export function getSellerType(role) {
   return role === ROLES.MERCHANT ? 'merchant' : 'student'
+}
+
+/** 超管、商品本人可见库存；公开列表/买家不可见 */
+export function canViewProductStock(viewer, product) {
+  if (!viewer || !product) return false
+  if (viewer.role === ROLES.SUPER_ADMIN) return true
+  const sellerId = product.sellerId?._id || product.sellerId
+  return Boolean(sellerId && viewer._id && sellerId.toString() === viewer._id.toString())
+}
+
+function omitStock(doc) {
+  if (!doc) return doc
+  const obj = typeof doc.toObject === 'function' ? doc.toObject() : { ...doc }
+  delete obj.stock
+  return obj
+}
+
+function sanitizeProductForViewer(product, viewer) {
+  if (canViewProductStock(viewer, product)) {
+    return typeof product.toObject === 'function' ? product.toObject() : product
+  }
+  return omitStock(product)
 }
 
 export function canPublish(user) {
@@ -75,8 +88,6 @@ export async function listProducts(query, user = null) {
     maxPrice,
     sellerType,
     sellerId,
-    tradeMode,
-    groupBuyOnly,
     status = PRODUCT_STATUS.ON_SALE,
     sort = 'createdAt',
     order = 'desc',
@@ -97,11 +108,6 @@ export async function listProducts(query, user = null) {
   if (category) filter.category = category
   if (sellerType) filter.sellerType = sellerType
   if (sellerId) filter.sellerId = sellerId
-  if (tradeMode) filter.tradeMode = tradeMode
-  if (groupBuyOnly === 'true' || groupBuyOnly === true) {
-    filter['groupBuy.enabled'] = true
-    filter['groupBuy.status'] = 'open'
-  }
   if (minPrice != null || maxPrice != null) {
     filter.price = {}
     if (minPrice != null) filter.price.$gte = Number(minPrice)
@@ -123,7 +129,7 @@ export async function listProducts(query, user = null) {
     .skip(skip)
     .limit(ps)
     .populate('sellerId', 'nickname avatar role studentVerified')
-    .select('-description')
+    .select('-description -stock')
 
   if (textSearch) {
     q = q.select({ score: { $meta: 'textScore' } })
@@ -137,7 +143,7 @@ export async function listProducts(query, user = null) {
   }
 }
 
-export async function getProductDetail(id, userId = null) {
+export async function getProductDetail(id, viewer = null) {
   const product = await Product.findOne(activeProductFilter({ _id: id }))
     .populate('sellerId', 'nickname avatar role phone regionId studentVerified merchantProfileId creditScore')
     .populate('regionId', 'name code')
@@ -151,6 +157,7 @@ export async function getProductDetail(id, userId = null) {
   await Product.findByIdAndUpdate(id, { $inc: { viewCount: 1 } })
 
   const merchantProfileId = product.sellerId?.merchantProfileId
+  const userId = viewer?._id || viewer
   const [shop, favorited] = await Promise.all([
     product.sellerType === 'merchant' && merchantProfileId
       ? MerchantProfile.findById(merchantProfileId).select('shopName shopLogo status')
@@ -164,7 +171,7 @@ export async function getProductDetail(id, userId = null) {
     })
   }
 
-  return { product, shop, favorited, groupBuy: getGroupBuySummary(product, userId) }
+  return { product: sanitizeProductForViewer(product, viewer?._id ? viewer : null), shop, favorited }
 }
 
 export async function createProduct(user, body) {
@@ -176,7 +183,6 @@ export async function createProduct(user, body) {
   const safeBody = prepareProductCreateFields(body)
   return Product.create({
     ...safeBody,
-    tradeMode: safeBody.tradeMode || 'sell',
     sellerId: user._id,
     regionId: user.regionId,
     sellerType: getSellerType(user.role),
@@ -217,31 +223,29 @@ export async function updateProduct(productId, user, body) {
   const allowed = [
     'title',
     'description',
-    'tradeMode',
     'price',
     'originalPrice',
+    'stock',
     'category',
     'images',
     'videos',
     'condition',
     'location',
     'tags',
-    'groupBuy',
   ]
-  const price = body.price !== undefined ? body.price : product.price
   allowed.forEach((k) => {
     if (body[k] !== undefined) product[k] = body[k]
   })
-  if (body.groupBuy !== undefined) {
-    if (product.tradeMode === 'exchange' || body.tradeMode === 'exchange') {
-      product.groupBuy = { enabled: false, minCount: 2, groupPrice: 0, status: 'open', participants: [] }
-    } else if (body.groupBuy.enabled === false) {
-      product.groupBuy.enabled = false
-      product.groupBuy.status = 'open'
-      product.groupBuy.participants = []
-    } else if (product.groupBuy?.status !== 'success') {
-      const participants = product.groupBuy?.participants || []
-      product.groupBuy = { ...normalizeGroupBuyInput(body.groupBuy, price), participants }
+  if (body.stock !== undefined) {
+    const stock = Number(body.stock)
+    if (!Number.isInteger(stock) || stock < 1) {
+      const err = new Error('库存至少为 1')
+      err.code = 40000
+      throw err
+    }
+    product.stock = stock
+    if (product.status === PRODUCT_STATUS.SOLD && stock >= 1) {
+      product.status = PRODUCT_STATUS.ON_SALE
     }
   }
   if (body.title !== undefined) {

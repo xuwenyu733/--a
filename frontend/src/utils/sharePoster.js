@@ -40,7 +40,7 @@ function wrapText(ctx, text, maxWidth, maxLines = 2) {
 
 /**
  * @param {HTMLCanvasElement} canvas
- * @param {{ _id: string, title: string, price?: number, tradeMode?: string, images?: string[] }} product
+ * @param {{ _id: string, title: string, price?: number, images?: string[] }} product
  */
 export async function drawProductSharePoster(canvas, product) {
   const W = 600
@@ -59,7 +59,7 @@ export async function drawProductSharePoster(canvas, product) {
   ctx.fillRect(24, 24, W - 48, H - 48)
   ctx.fillStyle = '#1a5f4a'
   ctx.font = 'bold 22px system-ui, sans-serif'
-  ctx.fillText('校园市集 · 好物分享', 40, 58)
+  ctx.fillText('校园二手 · 好物分享', 40, 58)
 
   const imgY = 72
   const imgH = 320
@@ -94,13 +94,7 @@ export async function drawProductSharePoster(canvas, product) {
     ctx.fillText(line, 40, titleY + i * 34)
   })
 
-  const isExchange = product.tradeMode === 'exchange'
-  const priceText =
-    isExchange && !product.price
-      ? '面议交换'
-      : isExchange
-        ? `换物 · ¥${product.price ?? 0}`
-        : `¥${product.price ?? 0}`
+  const priceText = `¥${product.price ?? 0}`
 
   ctx.fillStyle = '#f56c6c'
   ctx.font = 'bold 36px system-ui, sans-serif'

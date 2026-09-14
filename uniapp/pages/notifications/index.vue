@@ -87,8 +87,6 @@ function navigate(n) {
       uni.navigateTo({ url: `/pages/chat/room?id=${n.relatedId}` })
       break
     case 'price_drop':
-    case 'group_buy_success':
-    case 'group_buy_cancelled':
       uni.navigateTo({ url: `/pages/products/detail?id=${n.relatedId}` })
       break
     case 'order_status':

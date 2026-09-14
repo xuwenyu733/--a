@@ -19,7 +19,7 @@ export function validateOrderStatusUpdate({ currentStatus, nextStatus, isBuyer, 
   return { ok: true }
 }
 
-export function validateCreateOrder({ buyer, product, hasActiveOrder }) {
+export function validateCreateOrder({ buyer, product, hasActiveOrder, quantity = 1 }) {
   if (buyer.role !== ROLES.STUDENT || !buyer.studentVerified) {
     return { ok: false, message: '仅已认证学生可下单', code: 40301 }
   }
@@ -32,11 +32,19 @@ export function validateCreateOrder({ buyer, product, hasActiveOrder }) {
   if (product.sellerId.toString() === buyer._id.toString()) {
     return { ok: false, message: '不能购买自己的商品', code: 40000 }
   }
-  if (product.tradeMode === 'exchange') {
-    return { ok: false, message: '以物换物请通过聊天协商', code: 40000 }
-  }
   if (hasActiveOrder) {
     return { ok: false, message: '该商品已有进行中的订单', code: 40900 }
+  }
+  const qty = Number(quantity)
+  if (!Number.isInteger(qty) || qty < 1) {
+    return { ok: false, message: '购买数量至少为 1', code: 40000 }
+  }
+  const stock = Number(product.stock)
+  if (!Number.isFinite(stock) || stock < 1) {
+    return { ok: false, message: '商品已无库存', code: 40000 }
+  }
+  if (qty > stock) {
+    return { ok: false, message: '商品已无库存', code: 40000 }
   }
   return { ok: true }
 }

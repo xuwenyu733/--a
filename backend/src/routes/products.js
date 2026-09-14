@@ -58,8 +58,5 @@ router.patch(
   productController.updateStatus,
 )
 router.post('/:id/favorite', requireAuth, validateParams(idParamSchema), productController.toggleFavorite)
-router.post('/:id/group-buy/join', requireAuth, validateParams(idParamSchema), productController.joinGroupBuy)
-router.post('/:id/group-buy/leave', requireAuth, validateParams(idParamSchema), productController.leaveGroupBuy)
-router.post('/:id/group-buy/cancel', requireAuth, requireRole(ROLES.STUDENT, ROLES.MERCHANT), validateParams(idParamSchema), productController.cancelGroupBuy)
 
 export default router

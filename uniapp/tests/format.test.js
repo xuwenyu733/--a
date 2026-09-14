@@ -2,12 +2,12 @@ import { describe, it, expect } from 'vitest'
 import { formatPrice, formatTime, previewMessage } from '../utils/format.js'
 
 describe('formatPrice', () => {
-  it('formats sell price', () => {
-    expect(formatPrice(99, 'sell')).toBe('¥99')
+  it('formats price', () => {
+    expect(formatPrice(99)).toBe('¥99')
   })
 
-  it('shows exchange label when no price', () => {
-    expect(formatPrice(0, 'exchange')).toBe('面议换物')
+  it('formats zero price', () => {
+    expect(formatPrice(0)).toBe('¥0')
   })
 })
 

@@ -17,13 +17,10 @@
     <el-table :data="list" v-loading="loading">
       <el-table-column prop="title" label="标题" min-width="160" />
       <el-table-column label="价格" width="120">
-        <template #default="{ row }">
-          <div>¥{{ row.price }}</div>
-          <div v-if="row.groupBuy?.enabled" class="gb-hint">
-            拼单 ¥{{ row.groupBuy.groupPrice }}
-            · {{ groupBuyLabel(row) }}
-          </div>
-        </template>
+        <template #default="{ row }">¥{{ row.price }}</template>
+      </el-table-column>
+      <el-table-column label="库存" width="100">
+        <template #default="{ row }">{{ row.stock ?? 0 }}</template>
       </el-table-column>
       <el-table-column label="状态" width="100">
         <template #default="{ row }">{{ STATUS_LABELS[row.status] }}</template>
@@ -34,13 +31,6 @@
           <el-button v-if="row.status === 'on_sale'" size="small" @click="$router.push(`/products/${row._id}/edit`)">编辑</el-button>
           <el-button v-if="row.status === 'on_sale'" size="small" type="success" @click="setStatus(row, 'sold')">标记已售</el-button>
           <el-button v-if="row.status === 'on_sale'" size="small" @click="setStatus(row, 'off_shelf')">下架</el-button>
-          <el-button
-            v-if="row.groupBuy?.enabled && row.groupBuy?.status === 'open'"
-            size="small"
-            type="warning"
-            plain
-            @click="cancelGroup(row)"
-          >关闭拼单</el-button>
           <el-button size="small" type="danger" @click="remove(row)">删除</el-button>
         </template>
       </el-table-column>
@@ -53,7 +43,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import * as productApi from '@/api/product'
-import { STATUS_LABELS, GROUP_BUY_STATUS_LABELS } from '@/constants/product'
+import { STATUS_LABELS } from '@/constants/product'
 
 const loading = ref(false)
 const error = ref('')
@@ -86,25 +76,9 @@ async function remove(row) {
   load()
 }
 
-function groupBuyLabel(row) {
-  const gb = row.groupBuy
-  if (!gb?.enabled) return ''
-  const n = gb.participants?.length || 0
-  const base = GROUP_BUY_STATUS_LABELS[gb.status] || gb.status
-  return `${base} (${n}/${gb.minCount})`
-}
-
-async function cancelGroup(row) {
-  await ElMessageBox.confirm('关闭后参团用户将收到通知，确定关闭拼单？', '关闭拼单', { type: 'warning' })
-  await productApi.cancelGroupBuy(row._id)
-  ElMessage.success('拼单已关闭')
-  load()
-}
-
 onMounted(load)
 </script>
 
 <style scoped>
 .header-row { display: flex; justify-content: space-between; align-items: center; }
-.gb-hint { font-size: 12px; color: var(--el-color-warning); margin-top: 4px; }
 </style>

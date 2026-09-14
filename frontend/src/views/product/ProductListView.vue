@@ -35,14 +35,6 @@
             <el-option label="商家" value="merchant" />
           </el-select>
         </el-form-item>
-        <el-form-item label="交易方式">
-          <el-select v-model="filters.tradeMode" clearable placeholder="全部" style="width:110px">
-            <el-option v-for="m in TRADE_MODES" :key="m.value" :label="m.label" :value="m.value" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-checkbox v-model="filters.groupBuyOnly" @change="search">仅看拼单中</el-checkbox>
-        </el-form-item>
         <el-form-item label="价格">
           <el-input-number v-model="filters.minPrice" :min="0" placeholder="最低" controls-position="right" style="width:100px" />
           <span style="margin:0 4px">-</span>
@@ -64,27 +56,7 @@
       </el-form>
     </el-card>
 
-    <el-alert
-      v-if="filters.groupBuyOnly"
-      type="info"
-      :closable="false"
-      show-icon
-      class="filter-hint"
-      title="当前仅显示「拼单中」的商品"
-    />
-
     <el-alert v-if="error" type="error" :title="error" show-icon :closable="false" style="margin-bottom: 16px">
-      <el-button link type="primary" @click="load">重试</el-button>
-    </el-alert>
-
-    <el-alert
-      v-if="error"
-      type="error"
-      :title="error"
-      show-icon
-      :closable="false"
-      style="margin-bottom: 16px"
-    >
       <el-button link type="primary" @click="load">重试</el-button>
     </el-alert>
 
@@ -94,9 +66,7 @@
         <ProductCard :product="p" />
       </el-col>
     </el-row>
-    <el-empty v-else-if="!loading && !error" :description="emptyDescription">
-      <el-button v-if="filters.groupBuyOnly" type="primary" @click="clearGroupBuyFilter">查看全部商品</el-button>
-    </el-empty>
+    <el-empty v-else-if="!loading && !error" :description="emptyDescription" />
 
     <div class="pagination" v-if="pagination.total > pagination.pageSize">
       <el-pagination
@@ -113,18 +83,17 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import * as productApi from '@/api/product'
 import * as userApi from '@/api/user'
 import { useAuthStore } from '@/stores/auth'
 import { useRegion } from '@/composables/useRegion'
-import { CATEGORIES, SORT_OPTIONS, TRADE_MODES } from '@/constants/product'
+import { CATEGORIES, SORT_OPTIONS } from '@/constants/product'
 import ProductCard from '@/components/ProductCard.vue'
 import ProductGridSkeleton from '@/components/ProductGridSkeleton.vue'
 
 const auth = useAuthStore()
-const route = useRoute()
 const router = useRouter()
 const { regionId, ensureGuestRegion } = useRegion()
 const loading = ref(false)
@@ -136,12 +105,10 @@ const filters = ref({
   keyword: '',
   category: '',
   sellerType: '',
-  tradeMode: '',
   minPrice: undefined,
   maxPrice: undefined,
   sort: 'createdAt',
   order: 'desc',
-  groupBuyOnly: false,
   page: 1,
 })
 
@@ -150,14 +117,11 @@ const hasActiveFilter = computed(
     !!filters.value.keyword ||
     !!filters.value.category ||
     !!filters.value.sellerType ||
-    !!filters.value.tradeMode ||
     filters.value.minPrice != null ||
-    filters.value.maxPrice != null ||
-    filters.value.groupBuyOnly
+    filters.value.maxPrice != null
 )
 
 const emptyDescription = computed(() => {
-  if (filters.value.groupBuyOnly) return '暂无进行中的拼单商品'
   if (hasActiveFilter.value) return '没有符合筛选条件的商品'
   return '暂无商品'
 })
@@ -166,12 +130,9 @@ function buildQueryParams(regionIdValue) {
   const params = { ...filters.value, regionId: regionIdValue, pageSize: 12 }
   if (!params.category) delete params.category
   if (!params.sellerType) delete params.sellerType
-  if (!params.tradeMode) delete params.tradeMode
   if (!params.keyword) delete params.keyword
   if (params.minPrice == null) delete params.minPrice
   if (params.maxPrice == null) delete params.maxPrice
-  if (!params.groupBuyOnly) delete params.groupBuyOnly
-  else params.groupBuyOnly = true
   return params
 }
 
@@ -214,20 +175,12 @@ function resetFilters() {
     keyword: '',
     category: '',
     sellerType: '',
-    tradeMode: '',
     minPrice: undefined,
     maxPrice: undefined,
     sort: 'createdAt',
     order: 'desc',
-    groupBuyOnly: false,
     page: 1,
   }
-  router.replace({ path: '/products', query: {} })
-  search()
-}
-
-function clearGroupBuyFilter() {
-  filters.value.groupBuyOnly = false
   router.replace({ path: '/products', query: {} })
   search()
 }
@@ -264,9 +217,6 @@ async function clearHistory() {
 }
 
 onMounted(async () => {
-  if (route.query.groupBuy === '1') {
-    filters.value.groupBuyOnly = true
-  }
   await loadSearchHistory()
   load()
 })
@@ -274,7 +224,6 @@ onMounted(async () => {
 
 <style scoped>
 .filter-card { margin-bottom: 20px; }
-.filter-hint { margin-bottom: 16px; }
 .history-tags { margin-top: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .history-label { font-size: 12px; color: #909399; }
 .history-tag { cursor: pointer; }

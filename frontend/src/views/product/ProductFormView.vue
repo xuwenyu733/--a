@@ -8,18 +8,16 @@
       <el-form-item label="标题" prop="title">
         <el-input v-model="form.title" maxlength="80" show-word-limit />
       </el-form-item>
-      <el-form-item label="交易方式" prop="tradeMode">
-        <el-radio-group v-model="form.tradeMode">
-          <el-radio v-for="m in TRADE_MODES" :key="m.value" :value="m.value">{{ m.label }}</el-radio>
-        </el-radio-group>
-      </el-form-item>
       <el-form-item label="分类" prop="category">
         <el-select v-model="form.category" style="width:100%">
           <el-option v-for="c in CATEGORIES" :key="c.value" :label="c.label" :value="c.value" />
         </el-select>
       </el-form-item>
-      <el-form-item :label="form.tradeMode === 'exchange' ? '参考价（可填 0）' : '价格'" prop="price">
+      <el-form-item label="价格" prop="price">
         <el-input-number v-model="form.price" :min="0" :precision="2" />
+      </el-form-item>
+      <el-form-item label="库存" prop="stock">
+        <el-input-number v-model="form.stock" :min="1" :precision="0" :step="1" />
       </el-form-item>
       <el-form-item label="原价">
         <el-input-number v-model="form.originalPrice" :min="0" :precision="2" />
@@ -59,18 +57,6 @@
           <el-button type="danger" link @click="removeVideo">删除视频</el-button>
         </div>
       </el-form-item>
-      <el-form-item v-if="form.tradeMode === 'sell'" label="开启拼单">
-        <el-switch v-model="form.groupBuy.enabled" />
-        <p class="field-hint">满指定人数后，参与者可按拼单价下单</p>
-      </el-form-item>
-      <template v-if="form.tradeMode === 'sell' && form.groupBuy.enabled">
-        <el-form-item label="成团人数">
-          <el-input-number v-model="form.groupBuy.minCount" :min="2" :max="20" />
-        </el-form-item>
-        <el-form-item label="拼单价">
-          <el-input-number v-model="form.groupBuy.groupPrice" :min="0" :precision="2" />
-        </el-form-item>
-      </template>
       <el-form-item label="描述" prop="description">
         <el-input v-model="form.description" type="textarea" :rows="5" />
       </el-form-item>
@@ -90,7 +76,7 @@ import { Plus } from '@element-plus/icons-vue'
 import * as productApi from '@/api/product'
 import { compressImage } from '@/utils/imageCompress'
 import { getFileUrl } from '@/utils/fileUrl'
-import { CATEGORIES, CONDITIONS, TRADE_MODES } from '@/constants/product'
+import { CATEGORIES, CONDITIONS } from '@/constants/product'
 
 const route = useRoute()
 const router = useRouter()
@@ -103,22 +89,31 @@ const isEdit = computed(() => !!route.params.id)
 
 const form = ref({
   title: '',
-  tradeMode: 'sell',
   category: 'other',
   price: 0,
+  stock: 1,
   originalPrice: null,
   condition: 'good',
   location: '',
   description: '',
   images: [],
   videos: [],
-  groupBuy: { enabled: false, minCount: 2, groupPrice: 0 },
 })
 
 const rules = {
   title: [{ required: true, message: '请输入标题' }],
   category: [{ required: true, message: '请选择分类' }],
   price: [{ required: true, message: '请输入价格' }],
+  stock: [
+    { required: true, message: '请设置库存' },
+    {
+      validator: (_r, v, cb) => {
+        if (!Number.isInteger(v) || v < 1) cb(new Error('库存至少为 1'))
+        else cb()
+      },
+      trigger: 'change',
+    },
+  ],
 }
 
 async function handleUpload({ file }) {
@@ -161,9 +156,6 @@ async function submit() {
   try {
     const payload = { ...form.value }
     if (!payload.originalPrice) delete payload.originalPrice
-    if (payload.tradeMode === 'exchange' || !payload.groupBuy?.enabled) {
-      payload.groupBuy = { enabled: false }
-    }
     if (isEdit.value) {
       await productApi.updateProduct(route.params.id, payload)
       ElMessage.success('保存成功')
@@ -193,20 +185,15 @@ async function loadProduct() {
     const p = data.product
     form.value = {
       title: p.title,
-      tradeMode: p.tradeMode || 'sell',
       category: p.category,
       price: p.price,
+      stock: Math.max(1, Number(p.stock) || 1),
       originalPrice: p.originalPrice,
       condition: p.condition,
       location: p.location,
       description: p.description,
       images: [...(p.images || [])],
       videos: [...(p.videos || [])],
-      groupBuy: {
-        enabled: !!p.groupBuy?.enabled,
-        minCount: p.groupBuy?.minCount || 2,
-        groupPrice: p.groupBuy?.groupPrice || 0,
-      },
     }
     fileList.value = (p.images || []).map((url, i) => ({ name: `img-${i}`, url: getFileUrl(url), path: url }))
     if (p.videos?.[0]) videoPreviewUrl.value = getFileUrl(p.videos[0])

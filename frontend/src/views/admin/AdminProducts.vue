@@ -34,6 +34,9 @@
       <el-table-column label="价格" width="80">
         <template #default="{ row }">¥{{ row.price }}</template>
       </el-table-column>
+      <el-table-column label="库存" width="80">
+        <template #default="{ row }">{{ row.stock ?? 0 }}</template>
+      </el-table-column>
       <el-table-column label="状态" width="90">
         <template #default="{ row }">{{ STATUS_LABELS[row.status] }}</template>
       </el-table-column>

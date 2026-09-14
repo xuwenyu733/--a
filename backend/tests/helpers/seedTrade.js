@@ -46,9 +46,9 @@ export async function seedTradeFixture(options = {}) {
     sellerType: 'student',
     title: '二手键盘',
     price: 88,
+    stock: options.stock ?? 1,
     category: 'electronics',
     status: PRODUCT_STATUS.ON_SALE,
-    tradeMode: options.tradeMode || 'sell',
   })
 
   let order = null

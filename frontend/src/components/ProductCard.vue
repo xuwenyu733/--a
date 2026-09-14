@@ -3,21 +3,10 @@
     <div class="cover">
       <img v-if="imgSrc" :src="imgSrc" alt="" loading="lazy" decoding="async" @error="onImgError" />
       <div v-else class="no-img">暂无图片</div>
-      <el-tag v-if="product.tradeMode === 'exchange'" class="badge badge--exchange" type="warning" size="small">换物</el-tag>
-      <el-tag v-else-if="product.groupBuy?.enabled && product.groupBuy?.status === 'open'" class="badge badge--group" type="danger" size="small">拼单</el-tag>
-      <el-tag v-else-if="product.sellerType === 'merchant'" class="badge" type="warning" size="small">商家</el-tag>
     </div>
     <div class="info">
       <h3 class="title">{{ product.title }}</h3>
-      <p class="price">
-        <template v-if="showGroupPrice">
-          <span class="group-price">拼 ¥{{ product.groupBuy.groupPrice }}</span>
-          <span class="orig-price">¥{{ product.price }}</span>
-        </template>
-        <template v-else>
-          {{ product.tradeMode === 'exchange' && !product.price ? '面议换物' : `¥${product.price}` }}
-        </template>
-      </p>
+      <p class="price">¥{{ product.price }}</p>
       <p class="meta" @click.stop="goSeller">
         <span class="seller-link">{{ product.sellerId?.nickname }}</span>
         · {{ formatCondition(product.condition) }}
@@ -61,14 +50,6 @@ function onImgError() {
   }
 }
 
-const showGroupPrice = computed(
-  () =>
-    props.product.tradeMode !== 'exchange' &&
-    props.product.groupBuy?.enabled &&
-    props.product.groupBuy?.status === 'open' &&
-    props.product.groupBuy?.groupPrice > 0
-)
-
 function formatCondition(v) {
   return CONDITIONS.find((c) => c.value === v)?.label || v
 }
@@ -86,13 +67,8 @@ function goSeller() {
 .cover { position: relative; height: 160px; background: #f5f7fa; border-radius: 4px; overflow: hidden; }
 .cover img { width: 100%; height: 100%; object-fit: cover; }
 .no-img { height: 100%; display: flex; align-items: center; justify-content: center; color: #999; }
-.badge { position: absolute; top: 8px; left: 8px; }
-.badge--exchange { left: auto; right: 8px; }
-.badge--group { left: auto; right: 8px; }
 .title { font-size: 14px; margin: 8px 0 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.price { color: #f56c6c; font-weight: 700; font-size: 18px; margin: 0; display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
-.group-price { color: #f56c6c; }
-.orig-price { font-size: 13px; color: var(--app-muted); font-weight: 400; text-decoration: line-through; }
+.price { color: #f56c6c; font-weight: 700; font-size: 18px; margin: 0; }
 .meta { font-size: 12px; color: #909399; margin: 4px 0 0; }
 .seller-link { color: #409eff; cursor: pointer; }
 .seller-link:hover { text-decoration: underline; }

@@ -7,6 +7,9 @@ const orderSchema = new mongoose.Schema(
     buyerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     sellerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     sellerType: { type: String, enum: ['student', 'merchant'], required: true },
+    /** 购买数量 */
+    quantity: { type: Number, required: true, min: 1, default: 1 },
+    /** 订单总价 = 单价 × 数量 */
     price: { type: Number, required: true, min: 0 },
     status: {
       type: String,
@@ -29,7 +32,6 @@ const orderSchema = new mongoose.Schema(
     },
     latestPaymentNo: { type: String, default: null },
     buyerPaidAt: { type: Date, default: null },
-    isGroupBuy: { type: Boolean, default: false },
   },
   { timestamps: true }
 )

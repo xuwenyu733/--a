@@ -17,11 +17,33 @@ describe('orderHelpers', () => {
   it('validateCreateOrder rejects unverified student', () => {
     const r = validateCreateOrder({
       buyer: { role: ROLES.STUDENT, studentVerified: false, _id: 'b1' },
-      product: { status: PRODUCT_STATUS.ON_SALE, sellerId: 's1', tradeMode: 'sell' },
+      product: { status: PRODUCT_STATUS.ON_SALE, sellerId: 's1', stock: 5 },
       hasActiveOrder: false,
+      quantity: 1,
     })
     expect(r.ok).toBe(false)
     expect(r.code).toBe(40301)
+  })
+
+  it('validateCreateOrder rejects quantity above stock', () => {
+    const r = validateCreateOrder({
+      buyer: { role: ROLES.STUDENT, studentVerified: true, _id: 'b1' },
+      product: { status: PRODUCT_STATUS.ON_SALE, sellerId: 's1', stock: 0 },
+      hasActiveOrder: false,
+      quantity: 1,
+    })
+    expect(r.ok).toBe(false)
+    expect(r.message).toMatch(/库存/)
+  })
+
+  it('validateCreateOrder accepts when stock available', () => {
+    const r = validateCreateOrder({
+      buyer: { role: ROLES.STUDENT, studentVerified: true, _id: 'b1' },
+      product: { status: PRODUCT_STATUS.ON_SALE, sellerId: 's1', stock: 3 },
+      hasActiveOrder: false,
+      quantity: 1,
+    })
+    expect(r.ok).toBe(true)
   })
 
   it('validateMarkBuyerPaid requires buyer', () => {

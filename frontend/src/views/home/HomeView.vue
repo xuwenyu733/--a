@@ -16,7 +16,7 @@
     <section class="service-grid">
       <el-card class="service-card service-card--trade" shadow="hover" @click="$router.push('/products')">
         <div class="service-icon">🛒</div>
-        <h2>闲置交易</h2>
+        <h2>校园二手</h2>
         <p>本校闲置交易 · 当面验货 · 即时聊天 · 零手续费</p>
         <el-button type="primary">进入市集</el-button>
       </el-card>
@@ -39,7 +39,7 @@
     </section>
 
     <el-card class="hero">
-      <h1>校园市集</h1>
+      <h1>校园生活服务平台</h1>
       <p>交易与求职一站搞定 · 仅限本校师生与认证商家</p>
       <div class="actions">
         <el-button type="primary" size="large" @click="$router.push('/products')">浏览商品</el-button>
@@ -97,20 +97,6 @@
       </el-row>
     </el-card>
 
-    <el-card v-if="groupBuyProducts.length" style="margin-top:20px">
-      <template #header>
-        <div class="section-header">
-          <span>🛒 拼单专区</span>
-          <el-button link type="primary" @click="$router.push('/products?groupBuy=1')">查看更多</el-button>
-        </div>
-      </template>
-      <el-row :gutter="16">
-        <el-col v-for="p in groupBuyProducts" :key="p._id" :xs="12" :sm="8" :md="6">
-          <ProductCard :product="p" />
-        </el-col>
-      </el-row>
-    </el-card>
-
     <el-alert v-if="auth.isLoggedIn" :title="`欢迎回来，${auth.user?.nickname}`" type="success" show-icon :closable="false" style="margin-top:20px" />
   </div>
 </template>
@@ -139,7 +125,6 @@ const latestTotal = ref(0)
 const cachedRegionId = ref('')
 const latestProducts = ref([])
 const recommendedProducts = ref([])
-const groupBuyProducts = ref([])
 const platform = ref({ banners: [], announcement: '' })
 
 const hasMoreLatest = computed(() => latestProducts.value.length < latestTotal.value)
@@ -232,19 +217,14 @@ onMounted(async () => {
     ])
     cachedRegionId.value = rid
     platform.value = cfg
-    const [, rec, group] = await Promise.all([
+    const [, rec] = await Promise.all([
       fetchLatestProducts(false),
       productApi.getRecommendedProducts({ regionId: rid, limit: 8 }).catch((err) => {
         console.warn('getRecommendedProducts failed', err)
         return { list: [] }
       }),
-      productApi.getProducts({ regionId: rid, pageSize: 4, groupBuyOnly: true }).catch((err) => {
-        console.warn('getGroupBuyProducts failed', err)
-        return { list: [] }
-      }),
     ])
     recommendedProducts.value = rec.list || []
-    groupBuyProducts.value = group.list || []
   } catch {
     loading.value = false
     loadingMore.value = false

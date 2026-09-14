@@ -37,7 +37,6 @@
             <div class="info">
               <h4>{{ order.productId?.title }}</h4>
               <p class="price">¥{{ order.price }}</p>
-              <el-tag v-if="order.isGroupBuy" size="small" type="danger" effect="plain">拼单价</el-tag>
               <p class="peer">
                 {{ roleTab === 'buy' ? '卖家' : '买家' }}：
                 {{ roleTab === 'buy' ? order.sellerId?.nickname : order.buyerId?.nickname }}

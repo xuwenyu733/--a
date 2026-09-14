@@ -163,8 +163,10 @@ async function ensureDemoUsers(regionId, studentTemplate) {
 function buildProductSamples({ student, merchant, student2, zhao, zhou, chen, regionId }) {
   const base = (p) => {
     const { imageCount, images, ...rest } = p
+    const defaultStock = rest.sellerType === 'merchant' ? 100 : 1
     return {
       ...rest,
+      stock: rest.stock ?? defaultStock,
       images: images ?? imagesForProduct(p.title, imageCount ?? 1, rest.category),
       regionId,
       tags: [DEMO_TAG],
@@ -331,7 +333,6 @@ function buildProductSamples({ student, merchant, student2, zhao, zhou, chen, re
       sellerType: 'student',
       title: '宿舍小冰箱',
       description: '一学期自用，制冷正常',
-      tradeMode: 'sell',
       price: 280,
       category: 'electronics',
       condition: 'good',
@@ -340,13 +341,6 @@ function buildProductSamples({ student, merchant, student2, zhao, zhou, chen, re
       viewCount: 103,
       favoriteCount: 8,
       imageCount: 3,
-      groupBuy: {
-        enabled: true,
-        minCount: 2,
-        groupPrice: 250,
-        status: 'open',
-        participants: [{ userId: student2._id, joinedAt: daysAgo(1) }],
-      },
     }),
     base({
       sellerId: student._id,
@@ -359,39 +353,18 @@ function buildProductSamples({ student, merchant, student2, zhao, zhou, chen, re
       status: 'on_sale',
       location: '电竞社',
       viewCount: 77,
-      groupBuy: {
-        enabled: true,
-        minCount: 3,
-        groupPrice: 220,
-        status: 'open',
-        participants: [
-          { userId: student._id, joinedAt: daysAgo(2) },
-          { userId: student2._id, joinedAt: daysAgo(1) },
-        ],
-      },
     }),
     base({
       sellerId: merchant._id,
       sellerType: 'merchant',
       title: '复印纸 A4 5包装',
-      description: '期末打印季特惠，可拼单',
+      description: '期末打印季特惠',
       price: 80,
       category: 'daily',
       condition: 'new',
       status: 'on_sale',
       location: '东区商业街',
       viewCount: 41,
-      groupBuy: {
-        enabled: true,
-        minCount: 2,
-        groupPrice: 70,
-        status: 'success',
-        participants: [
-          { userId: merchant._id, joinedAt: daysAgo(5) },
-          { userId: student._id, joinedAt: daysAgo(4) },
-          { userId: student2._id, joinedAt: daysAgo(3) },
-        ],
-      },
     }),
     base({
       sellerId: zhou._id,
@@ -461,10 +434,9 @@ function buildProductSamples({ student, merchant, student2, zhao, zhou, chen, re
       sellerId: zhao._id,
       sellerType: 'student',
       title: '民谣吉他 九成新',
-      description: '想换一副头戴耳机，支持面交试弹',
-      price: 0,
+      description: '可面交试弹，价格可聊',
+      price: 380,
       category: 'other',
-      tradeMode: 'exchange',
       condition: 'like_new',
       status: 'on_sale',
       location: '艺术楼',
@@ -631,7 +603,7 @@ async function seedDemo() {
   const zone1 = zones[0]
   const zone2 = zones[1] || zone1
 
-  // 商品（含图片、多分类、拼单/交换/下架等状态）
+  // 商品（含图片、多分类、下架等状态）
   const products = await ensureDemoProducts({
     student,
     merchant,
@@ -938,10 +910,10 @@ async function seedDemo() {
       },
       {
         userId: wang._id,
-        type: 'group_buy_success',
-        title: '拼单成功',
-        content: '「复印纸 A4 5包装」拼单已满员',
-        relatedId: products.find((p) => p.groupBuy?.status === 'success')?._id,
+        type: 'price_drop',
+        title: '收藏商品降价了',
+        content: '「复印纸 A4 5包装」由 ¥80 降至 ¥70',
+        relatedId: products.find((p) => p.title === '复印纸 A4 5包装')?._id,
         read: false,
         createdAt: daysAgo(3),
       },

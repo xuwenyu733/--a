@@ -10,9 +10,6 @@ export const deleteProduct = (id) => request.delete(`/products/${id}`)
 export const updateProductStatus = (id, status) => request.patch(`/products/${id}/status`, { status })
 export const getMyProducts = (params) => request.get('/products/mine', { params })
 export const toggleFavorite = (id) => request.post(`/products/${id}/favorite`)
-export const joinGroupBuy = (id) => request.post(`/products/${id}/group-buy/join`)
-export const leaveGroupBuy = (id) => request.post(`/products/${id}/group-buy/leave`)
-export const cancelGroupBuy = (id) => request.post(`/products/${id}/group-buy/cancel`)
 export const getFavorites = (params) => request.get('/products/favorites', { params })
 
 export function uploadImages(files) {

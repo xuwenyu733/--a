@@ -79,7 +79,7 @@ export async function getRecommendations({ regionId, productId, limit = 8, userI
             .sort({ createdAt: -1 })
             .limit(cap)
             .populate('sellerId', SELLER_FIELDS)
-            .select('-description')
+            .select('-description -stock')
             .lean()
         })
     : Promise.resolve([])
@@ -89,13 +89,13 @@ export async function getRecommendations({ regionId, productId, limit = 8, userI
       .sort({ favoriteCount: -1, viewCount: -1, createdAt: -1 })
       .limit(cap * 2)
       .populate('sellerId', SELLER_FIELDS)
-      .select('-description')
+      .select('-description -stock')
       .lean(),
     Product.find(baseFilter)
       .sort({ createdAt: -1 })
       .limit(cap)
       .populate('sellerId', SELLER_FIELDS)
-      .select('-description')
+      .select('-description -stock')
       .lean(),
     relatedPromise,
   ])

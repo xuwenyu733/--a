@@ -1,5 +1,4 @@
 import * as productService from '../services/productService.js'
-import * as groupBuyService from '../services/groupBuyService.js'
 import { ErrorCodes, fail, success } from '../utils/response.js'
 import { CATEGORIES } from '../constants/product.js'
 export async function getMeta(req, res) {
@@ -33,7 +32,7 @@ export async function recommended(req, res, next) {
 
 export async function detail(req, res, next) {
   try {
-    const data = await productService.getProductDetail(req.params.id, req.user?._id)
+    const data = await productService.getProductDetail(req.params.id, req.user || null)
     return success(res, data)
   } catch (err) {
     if (err.code) return fail(res, err.code, err.message, 404)
@@ -134,45 +133,6 @@ export async function uploadVideo(req, res, next) {
     const urls = pathsToPublicUrls(paths)
     return success(res, { url: urls[0], path: paths[0] })
   } catch (err) {
-    next(err)
-  }
-}
-
-export async function joinGroupBuy(req, res, next) {
-  try {
-    const product = await groupBuyService.joinGroupBuy(req.params.id, req.user)
-    return success(res, {
-      product,
-      groupBuy: groupBuyService.getGroupBuySummary(product, req.user._id),
-    })
-  } catch (err) {
-    if (err.code) return fail(res, err.code, err.message, err.code === 40400 ? 404 : 400)
-    next(err)
-  }
-}
-
-export async function leaveGroupBuy(req, res, next) {
-  try {
-    const product = await groupBuyService.leaveGroupBuy(req.params.id, req.user)
-    return success(res, {
-      product,
-      groupBuy: groupBuyService.getGroupBuySummary(product, req.user._id),
-    })
-  } catch (err) {
-    if (err.code) return fail(res, err.code, err.message, err.code === 40400 ? 404 : 400)
-    next(err)
-  }
-}
-
-export async function cancelGroupBuy(req, res, next) {
-  try {
-    const product = await groupBuyService.cancelGroupBuy(req.params.id, req.user._id)
-    return success(res, {
-      product,
-      groupBuy: groupBuyService.getGroupBuySummary(product, req.user._id),
-    }, '已关闭拼单')
-  } catch (err) {
-    if (err.code) return fail(res, err.code, err.message, err.code === 40400 ? 404 : 403)
     next(err)
   }
 }

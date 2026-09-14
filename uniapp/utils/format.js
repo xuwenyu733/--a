@@ -19,8 +19,7 @@ export const PAYMENT_STATUS = {
   paid_online: '已在线支付',
 }
 
-export function formatPrice(price, tradeMode) {
-  if (tradeMode === 'exchange' && !price) return '面议换物'
+export function formatPrice(price) {
   return `¥${price}`
 }
 

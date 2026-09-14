@@ -45,39 +45,35 @@
         :empty-hint="emptyHint"
         @retry="load"
       />
-      <view v-for="item in orders" :key="item._id" class="card order-card" :class="{ 'order-card--own': item.isOwnOrder }">
-        <view class="head">
-          <text class="tag">{{ typeLabel(item.type) }}</text>
-          <text v-if="item.isOwnOrder" class="own-tag">我发布的</text>
-          <text class="price">¥{{ item.fee }}</text>
-          <text class="muted zone">{{ item.zoneId?.name }}</text>
-        </view>
-        <text class="title">{{ item.title || typeLabel(item.type) }}</text>
-        <text v-if="item.deliveryTimeLabel" class="line time-label">预计送达：{{ item.deliveryTimeLabel }}</text>
-        <text class="line">取：{{ item.pickupAddress }}</text>
-        <text class="line">送：{{ item.dropoffAddress }}</text>
-        <text v-if="item.isOwnOrder" class="line own-hint">这是您发布的委托，无法自行接单</text>
-        <text v-else-if="item.contactPhone" class="line">联系发布人：{{ item.contactPhone }}</text>
-        <text v-if="item.description" class="desc muted">{{ item.description }}</text>
-        <view class="foot">
-          <text class="muted">{{ formatTime(item.createdAt) }}</text>
-          <view class="foot-actions">
-            <button v-if="!item.isOwnOrder && item.contactPhone" size="mini" @tap="callPhone(item.contactPhone)">致电</button>
-            <button
-              v-if="item.isOwnOrder"
-              size="mini"
-              disabled
-            >不可接单</button>
-            <button
-              v-else
-              size="mini"
-              type="primary"
-              :loading="acceptingId === item._id"
-              @tap="confirmAccept(item)"
-            >接单</button>
-          </view>
-        </view>
-      </view>
+      <DeliveryOrderCard
+        v-for="item in orders"
+        :key="item._id"
+        :type-label="typeLabel(item.type)"
+        :extra-tag="item.isOwnOrder ? '我发布的' : ''"
+        :fee="item.fee"
+        :title="item.title || typeLabel(item.type)"
+        :delivery-time-label="item.deliveryTimeLabel"
+        :warn-text="item.isOwnOrder ? '这是您发布的委托，无法自行接单' : ''"
+        :pickup-address="item.pickupAddress"
+        :dropoff-address="item.dropoffAddress"
+        :info-lines="item.isOwnOrder || !item.contactPhone ? [] : [{ label: '电话', value: item.contactPhone }]"
+        :description="item.description"
+        :zone-name="item.zoneId?.name"
+        :created-at="formatTime(item.createdAt)"
+        :muted="item.isOwnOrder"
+      >
+        <template #actions>
+          <button v-if="!item.isOwnOrder && item.contactPhone" size="mini" @tap="callPhone(item.contactPhone)">致电</button>
+          <button v-if="item.isOwnOrder" size="mini" disabled>不可接单</button>
+          <button
+            v-else
+            size="mini"
+            type="primary"
+            :loading="acceptingId === item._id"
+            @tap="confirmAccept(item)"
+          >接单</button>
+        </template>
+      </DeliveryOrderCard>
         </view>
       </scroll-view>
     </template>
@@ -94,6 +90,7 @@ import { DELIVERY_ORDER_TYPES, labelOf } from '@/constants/delivery'
 import { formatTime } from '@/utils/format'
 import { buildHallDeliveryTimeFilterOptions, hallTimeFilterParams } from '@/utils/deliveryTime'
 import LoadState from '@/components/LoadState.vue'
+import DeliveryOrderCard from '@/components/DeliveryOrderCard.vue'
 
 const user = ref(null)
 const loading = ref(false)
@@ -318,16 +315,4 @@ function goVerify() {
 .tip { display: flex; flex-direction: column; gap: 12rpx; background: #fdf6ec; color: #e6a23c; margin-bottom: 0; }
 .tip-title { font-weight: 600; font-size: 30rpx; }
 .tip-desc { font-size: 26rpx; }
-.order-card--own { background: #f5f7fa; border: 1rpx solid #e4e7ed; }
-.own-tag { background: #909399; color: #fff; font-size: 22rpx; padding: 4rpx 12rpx; border-radius: 6rpx; }
-.own-hint { color: #909399; font-size: 24rpx; }
-.order-card .head { display: flex; gap: 12rpx; align-items: center; margin-bottom: 12rpx; flex-wrap: wrap; }
-.order-card .title { display: block; font-weight: 600; font-size: 30rpx; margin-bottom: 8rpx; }
-.line { display: block; font-size: 26rpx; margin-bottom: 6rpx; }
-.time-label { color: #409eff; font-weight: 500; }
-.desc { display: block; margin-top: 8rpx; font-size: 24rpx; line-height: 1.5; }
-.foot { display: flex; justify-content: space-between; align-items: center; margin-top: 16rpx; gap: 12rpx; }
-.foot-actions { display: flex; gap: 12rpx; }
-.price { color: #f56c6c; font-weight: 700; }
-.zone { margin-left: auto; font-size: 24rpx; }
 </style>

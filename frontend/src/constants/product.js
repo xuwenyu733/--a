@@ -6,23 +6,12 @@ export const CATEGORIES = [
   { value: 'other', label: '其他' },
 ]
 
-export const TRADE_MODES = [
-  { value: 'sell', label: '出售' },
-  { value: 'exchange', label: '以物换物' },
-]
-
 export const CONDITIONS = [
   { value: 'new', label: '全新' },
   { value: 'like_new', label: '几乎全新' },
   { value: 'good', label: '成色良好' },
   { value: 'fair', label: '有使用痕迹' },
 ]
-
-export const GROUP_BUY_STATUS_LABELS = {
-  open: '拼单中',
-  success: '已满员',
-  cancelled: '已关闭',
-}
 
 export const STATUS_LABELS = {
   on_sale: '在售',

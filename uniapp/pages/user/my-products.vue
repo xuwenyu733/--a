@@ -15,7 +15,7 @@
         <view class="info">
           <text class="title">{{ p.title }}</text>
           <text class="price">¥{{ p.price }}</text>
-          <text class="muted">{{ statusLabel(p.status) }}</text>
+          <text class="muted">{{ statusLabel(p.status) }} · 库存 {{ p.stock ?? 0 }}</text>
         </view>
       </view>
       <view class="actions">

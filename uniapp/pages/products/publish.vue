@@ -17,20 +17,16 @@
       <text class="label">标题 *</text>
       <input class="input" v-model="form.title" maxlength="80" placeholder="简要描述商品" />
 
-      <text class="label">交易方式</text>
-      <radio-group @change="onTradeMode">
-        <label v-for="m in TRADE_MODES" :key="m.value" class="radio-row">
-          <radio :value="m.value" :checked="form.tradeMode === m.value" /> {{ m.label }}
-        </label>
-      </radio-group>
-
       <text class="label">分类 *</text>
       <picker :range="categoryLabels" @change="onCategory">
         <view class="picker">{{ categoryLabels[categoryIndex] || '请选择' }}</view>
       </picker>
 
-      <text class="label">{{ form.tradeMode === 'exchange' ? '参考价（可填 0）' : '价格 *' }}</text>
+      <text class="label">价格 *</text>
       <input class="input" type="digit" v-model="form.price" placeholder="0" />
+
+      <text class="label">库存 *</text>
+      <input class="input" type="number" v-model="form.stock" placeholder="默认 1" />
 
       <text class="label">成色</text>
       <picker :range="conditionLabels" @change="onCondition">
@@ -63,20 +59,6 @@
       <text class="label">描述</text>
       <textarea class="textarea" v-model="form.description" placeholder="详细说明成色、配件等" />
 
-      <!-- 拼单配置 -->
-      <view v-if="form.tradeMode === 'sell'" class="group-buy-section">
-        <view class="gb-head" @tap="form.groupBuy.enabled = !form.groupBuy.enabled">
-          <text class="label" style="margin-bottom:0">🛒 拼单模式</text>
-          <switch :checked="form.groupBuy.enabled" @change="onGroupBuySwitch" color="#409eff" />
-        </view>
-        <template v-if="form.groupBuy.enabled">
-          <text class="label">拼单价 *（低于原价且 > 0）</text>
-          <input class="input" type="digit" v-model="form.groupBuy.groupPrice" placeholder="拼团优惠价" />
-          <text class="label">成团人数 *（至少 2 人）</text>
-          <input class="input" type="number" v-model="form.groupBuy.minCount" placeholder="2" maxlength="3" />
-        </template>
-      </view>
-
       <button type="primary" :loading="submitting" @tap="submit">发布</button>
     </view>
   </view>
@@ -90,7 +72,7 @@ import { uploadProductImage } from '@/utils/upload'
 import { getFileUrl } from '@/utils/fileUrl'
 import { ensureLogin, getUser, isLoggedIn, saveSession, getAccessToken, getRefreshToken } from '@/utils/auth'
 import { getMe } from '@/api/auth'
-import { CATEGORIES, TRADE_MODES, CONDITIONS } from '@/constants/product'
+import { CATEGORIES, CONDITIONS } from '@/constants/product'
 import LoadState from '@/components/LoadState.vue'
 
 const productId = ref('')
@@ -103,15 +85,14 @@ const canPublish = ref(true)
 
 const form = ref({
   title: '',
-  tradeMode: 'sell',
   category: 'other',
   price: '',
+  stock: '1',
   condition: 'good',
   location: '',
   description: '',
   images: [],
   video: '',
-  groupBuy: { enabled: false, groupPrice: '', minCount: '2' },
 })
 
 const categoryIndex = ref(4)
@@ -157,22 +138,16 @@ async function loadDetail(id) {
   try {
     const data = await getDetail(id)
     const p = data.product || data
-    const gb = p.groupBuy || {}
     form.value = {
       title: p.title,
-      tradeMode: p.tradeMode || 'sell',
       category: p.category,
       price: String(p.price ?? 0),
+      stock: String(Math.max(1, Number(p.stock) || 1)),
       condition: p.condition,
       location: p.location || '',
       description: p.description || '',
       images: [...(p.images || [])],
       video: p.video || '',
-      groupBuy: {
-        enabled: !!gb.enabled,
-        groupPrice: String(gb.groupPrice ?? ''),
-        minCount: String(gb.minCount || 2),
-      },
     }
     categoryIndex.value = Math.max(0, CATEGORIES.findIndex((c) => c.value === p.category))
     conditionIndex.value = Math.max(0, CONDITIONS.findIndex((c) => c.value === p.condition))
@@ -182,16 +157,6 @@ async function loadDetail(id) {
   } finally {
     detailLoading.value = false
   }
-}
-
-function onTradeMode(e) {
-  form.value.tradeMode = e.detail.value
-  if (e.detail.value !== 'sell') {
-    form.value.groupBuy.enabled = false
-  }
-}
-function onGroupBuySwitch(e) {
-  form.value.groupBuy.enabled = e.detail.value
 }
 
 function onCategory(e) {
@@ -269,41 +234,24 @@ async function submit() {
     uni.showToast({ title: '请填写有效价格', icon: 'none' })
     return
   }
-
-  const gb = form.value.groupBuy
-  const groupBuy = { enabled: gb.enabled }
-  if (gb.enabled) {
-    const gp = Number(gb.groupPrice)
-    const mc = Number(gb.minCount)
-    if (Number.isNaN(gp) || gp <= 0) {
-      uni.showToast({ title: '请填写有效拼单价', icon: 'none' })
-      return
-    }
-    if (gp >= price) {
-      uni.showToast({ title: '拼单价需低于原价', icon: 'none' })
-      return
-    }
-    if (Number.isNaN(mc) || mc < 2) {
-      uni.showToast({ title: '成团人数至少2人', icon: 'none' })
-      return
-    }
-    groupBuy.groupPrice = gp
-    groupBuy.minCount = mc
+  const stock = Math.floor(Number(form.value.stock))
+  if (!Number.isInteger(stock) || stock < 1) {
+    uni.showToast({ title: '库存至少为 1', icon: 'none' })
+    return
   }
 
   submitting.value = true
   try {
     const payload = {
       title: form.value.title.trim(),
-      tradeMode: form.value.tradeMode,
       category: form.value.category,
       price,
+      stock,
       condition: form.value.condition,
       location: form.value.location.trim(),
       description: form.value.description.trim(),
       images: form.value.images,
       video: form.value.video || undefined,
-      groupBuy,
     }
     if (productId.value) {
       await update(productId.value, payload)
@@ -322,7 +270,6 @@ async function submit() {
 </script>
 
 <style lang="scss" scoped>
-.radio-row { display: block; padding: 12rpx 0; }
 .img-grid { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 12rpx; }
 .img-item { position: relative; width: 160rpx; height: 160rpx; }
 .thumb { width: 160rpx; height: 160rpx; border-radius: 12rpx; }
@@ -333,19 +280,6 @@ async function submit() {
 .img-add {
   width: 160rpx; height: 160rpx; border: 2rpx dashed #dcdfe6; border-radius: 12rpx;
   display: flex; align-items: center; justify-content: center; font-size: 48rpx; color: #909399;
-}
-.group-buy-section {
-  margin-top: 24rpx;
-  padding: 20rpx;
-  background: #fafbfc;
-  border: 2rpx solid #ebeef5;
-  border-radius: 14rpx;
-}
-.gb-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16rpx;
 }
 .video-preview {
   position: relative;

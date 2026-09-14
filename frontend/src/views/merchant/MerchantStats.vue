@@ -18,15 +18,6 @@
       </el-col>
     </el-row>
 
-    <el-row :gutter="16" style="margin-top:16px">
-      <el-col :xs="12" :sm="6">
-        <el-statistic title="拼单进行中" :value="stats?.groupBuy?.open || 0" />
-      </el-col>
-      <el-col :xs="12" :sm="6">
-        <el-statistic title="拼单已满员" :value="stats?.groupBuy?.success || 0" />
-      </el-col>
-    </el-row>
-
     <el-row :gutter="16" style="margin-top:20px">
       <el-col :xs="24" :md="14">
         <el-card header="近 7 日成交趋势">

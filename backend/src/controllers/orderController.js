@@ -1,14 +1,14 @@
 import * as orderService from '../services/orderService.js'
-import { ErrorCodes, fail, httpStatusFromBizCode, success } from '../utils/response.js'
+import { ErrorCodes, fail, success } from '../utils/response.js'
 
 export async function create(req, res, next) {
   try {
-    const { productId, remark, useGroupPrice } = req.body
+    const { productId, remark } = req.body
     if (!productId) return fail(res, ErrorCodes.BAD_REQUEST, '请指定商品')
-    const order = await orderService.createOrder(req.user, { productId, remark, useGroupPrice })
+    const order = await orderService.createOrder(req.user, { productId, remark })
     return success(res, order, '下单成功，等待卖家确认')
   } catch (err) {
-    if (err.code) return fail(res, err.code, err.message, httpStatusFromBizCode(err.code))
+    if (err.code) return fail(res, err.code, err.message, err.code === 40400 ? 404 : err.code >= 40300 ? 403 : 400)
     next(err)
   }
 }
@@ -48,7 +48,7 @@ export async function markPaid(req, res, next) {
     const order = await orderService.markBuyerPaid(req.params.id, req.user._id)
     return success(res, order, '已标记付款')
   } catch (err) {
-    if (err.code) return fail(res, err.code, err.message, httpStatusFromBizCode(err.code))
+    if (err.code) return fail(res, err.code, err.message, err.code === 40400 ? 404 : 403)
     next(err)
   }
 }
@@ -58,7 +58,7 @@ export async function confirmPayment(req, res, next) {
     const order = await orderService.confirmSellerReceivedPayment(req.params.id, req.user._id)
     return success(res, order, '已确认收款')
   } catch (err) {
-    if (err.code) return fail(res, err.code, err.message, httpStatusFromBizCode(err.code))
+    if (err.code) return fail(res, err.code, err.message, err.code === 40400 ? 404 : 403)
     next(err)
   }
 }

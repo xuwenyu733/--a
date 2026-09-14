@@ -6,11 +6,6 @@ export const CATEGORIES = [
   { value: 'other', label: '其他' },
 ]
 
-export const TRADE_MODES = [
-  { value: 'sell', label: '出售' },
-  { value: 'exchange', label: '以物换物' },
-]
-
 export const CONDITIONS = [
   { value: 'new', label: '全新' },
   { value: 'like_new', label: '几乎全新' },

@@ -63,7 +63,7 @@ async function load() {
 
 function canNavigate(n) {
   if (!n.relatedId) return false
-  return ['delivery', 'price_drop', 'order_status', 'new_order', 'trade_review', 'order_payment', 'group_buy_success', 'group_buy_cancelled'].includes(n.type)
+  return ['delivery', 'price_drop', 'order_status', 'new_order', 'trade_review', 'order_payment'].includes(n.type)
 }
 
 function navigatePath(n) {
@@ -77,9 +77,6 @@ function navigatePath(n) {
     case 'trade_review':
     case 'order_payment':
       return { path: '/user/orders' }
-    case 'group_buy_success':
-    case 'group_buy_cancelled':
-      return { path: `/products/${n.relatedId}` }
     default:
       return null
   }

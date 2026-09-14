@@ -28,14 +28,12 @@
         <el-col :xs="24" :md="12">
           <h1>{{ product.title }}</h1>
           <div class="price-row">
-            <el-tag v-if="product.tradeMode === 'exchange'" type="warning" effect="dark">以物换物</el-tag>
-            <p class="price">
-              {{ product.tradeMode === 'exchange' && !product.price ? '面议交换' : `¥${product.price}` }}
-            </p>
+            <p class="price">¥{{ product.price }}</p>
           </div>
           <el-descriptions :column="1" border>
             <el-descriptions-item label="成色">{{ conditionLabel }}</el-descriptions-item>
             <el-descriptions-item label="分类">{{ categoryLabel }}</el-descriptions-item>
+            <el-descriptions-item v-if="canSeeStock" label="库存">{{ product.stock ?? 0 }}</el-descriptions-item>
             <el-descriptions-item label="交易地点">{{ product.location || '面议' }}</el-descriptions-item>
             <el-descriptions-item label="浏览">{{ product.viewCount }} 次</el-descriptions-item>
           </el-descriptions>
@@ -47,7 +45,7 @@
               v-if="canBuy"
               type="danger"
               :loading="ordering"
-              @click="orderUseGroupPrice = false; orderDialogVisible = true"
+              @click="openOrderDialog"
             >我想要</el-button>
             <el-button
               v-else-if="needVerify"
@@ -58,9 +56,8 @@
             <el-button
               v-if="canContact"
               :loading="contacting"
-              :type="isExchange ? 'primary' : 'default'"
               @click="handleContact"
-            >{{ isExchange ? '联系协商换物' : '联系卖家' }}</el-button>
+            >联系卖家</el-button>
             <el-button v-else-if="isOwner" type="info" disabled>这是您的商品</el-button>
             <el-tag v-else-if="product.status === 'sold'" type="info">已售出</el-tag>
             <el-button plain @click="sharePosterVisible = true">生成分享海报</el-button>
@@ -78,53 +75,9 @@
           />
           <SharePosterDialog v-model="sharePosterVisible" :product="product" />
 
-          <el-card v-if="groupBuy?.enabled" class="group-buy-card">
-            <template #header>
-              <span>拼单优惠</span>
-              <el-tag v-if="groupBuy.status === 'cancelled'" type="info" size="small">已关闭</el-tag>
-              <el-tag v-else-if="groupBuy.isFull" type="success" size="small">已满员</el-tag>
-              <el-tag v-else type="danger" size="small">进行中</el-tag>
-            </template>
-            <template v-if="groupBuy.status === 'cancelled'">
-              <p class="group-desc">卖家已关闭本商品的拼单活动</p>
-            </template>
-            <template v-else>
-            <p class="group-desc">
-              拼单价 <strong class="group-price">¥{{ groupBuy.groupPrice }}</strong>
-              · 原价 ¥{{ product.price }}
-              · {{ groupBuy.isFull ? '已满员' : `还差 ${groupBuy.remaining} 人` }}
-            </p>
-            <el-progress
-              :percentage="groupBuyProgress"
-              :status="groupBuy.isFull ? 'success' : undefined"
-              :stroke-width="10"
-            />
-            <p class="group-count">{{ groupBuy.participantCount }} / {{ groupBuy.minCount }} 人已参团</p>
-            <div class="group-actions">
-              <el-button
-                v-if="canJoinGroup"
-                type="warning"
-                :loading="groupLoading"
-                @click="handleJoinGroup"
-              >加入拼单</el-button>
-              <el-button
-                v-if="groupBuy.joined && !groupBuy.isFull"
-                :loading="groupLoading"
-                @click="handleLeaveGroup"
-              >退出拼单</el-button>
-              <el-button
-                v-if="canGroupOrder"
-                type="danger"
-                :loading="ordering"
-                @click="openGroupOrder"
-              >拼单价下单</el-button>
-            </div>
-            </template>
-          </el-card>
-
-          <el-dialog v-model="orderDialogVisible" :title="orderUseGroupPrice ? '拼单价下单' : '确认购买'" width="400px">
+          <el-dialog v-model="orderDialogVisible" title="确认购买" width="400px">
             <p>商品：<strong>{{ product.title }}</strong></p>
-            <p>价格：<strong class="price">¥{{ orderUseGroupPrice ? groupBuy?.groupPrice : product.price }}</strong></p>
+            <p>价格：<strong class="price">¥{{ product.price }}</strong></p>
             <el-input v-model="orderRemark" type="textarea" placeholder="备注（可选，如面交时间地点）" :rows="3" style="margin-top:12px" />
             <template #footer>
               <el-button @click="orderDialogVisible = false">取消</el-button>
@@ -206,20 +159,21 @@ const favorited = ref(false)
 const reportVisible = ref(false)
 const sharePosterVisible = ref(false)
 const relatedProducts = ref([])
-const groupBuy = ref(null)
-const groupLoading = ref(false)
-const orderUseGroupPrice = ref(false)
 
 const isOwner = computed(() => {
   const sid = product.value?.sellerId?._id || product.value?.sellerId
   return sid?.toString() === auth.user?._id?.toString()
 })
 
+const canSeeStock = computed(() => {
+  if (!product.value || product.value.stock == null) return false
+  if (isOwner.value) return true
+  return auth.user?.role === ROLES.SUPER_ADMIN
+})
+
 const canContact = computed(() => {
   return auth.isLoggedIn && product.value?.status === 'on_sale' && !isOwner.value
 })
-
-const isExchange = computed(() => product.value?.tradeMode === 'exchange')
 
 const canBuy = computed(() => {
   return (
@@ -227,8 +181,7 @@ const canBuy = computed(() => {
     auth.user?.role === ROLES.STUDENT &&
     auth.user?.studentVerified &&
     product.value?.status === 'on_sale' &&
-    !isOwner.value &&
-    !isExchange.value
+    !isOwner.value
   )
 })
 
@@ -245,25 +198,6 @@ const needVerify = computed(() => {
 const conditionLabel = computed(() => CONDITIONS.find((c) => c.value === product.value?.condition)?.label)
 const categoryLabel = computed(() => CATEGORIES.find((c) => c.value === product.value?.category)?.label)
 
-const groupBuyProgress = computed(() => {
-  if (!groupBuy.value?.minCount) return 0
-  return Math.min(100, Math.round((groupBuy.value.participantCount / groupBuy.value.minCount) * 100))
-})
-
-const canJoinGroup = computed(() => {
-  return (
-    canBuy.value &&
-    groupBuy.value?.enabled &&
-    groupBuy.value?.status === 'open' &&
-    !groupBuy.value.joined &&
-    !groupBuy.value.isFull
-  )
-})
-
-const canGroupOrder = computed(() => {
-  return canBuy.value && groupBuy.value?.joined && groupBuy.value.isFull
-})
-
 async function load() {
   loading.value = true
   error.value = ''
@@ -272,7 +206,6 @@ async function load() {
     product.value = data.product
     shop.value = data.shop
     favorited.value = data.favorited
-    groupBuy.value = data.groupBuy
     const regionId = data.product.regionId?._id || data.product.regionId
     if (regionId) {
       const rec = await productApi.getRecommendedProducts({
@@ -297,57 +230,26 @@ async function handleFavorite() {
   ElMessage.success(res.favorited ? '已收藏' : '已取消收藏')
 }
 
+function openOrderDialog() {
+  orderRemark.value = ''
+  orderDialogVisible.value = true
+}
+
 async function handleOrder() {
   ordering.value = true
   try {
     await orderApi.createOrder({
       productId: route.params.id,
       remark: orderRemark.value,
-      useGroupPrice: orderUseGroupPrice.value,
     })
     ElMessage.success('下单成功，等待卖家确认')
     orderDialogVisible.value = false
-    orderUseGroupPrice.value = false
     router.push('/user/orders')
-  } catch {
-    // 全局 request 拦截器已提示业务错误（如「已有进行中的订单」）
+  } catch (e) {
+    ElMessage.error(e.message || '下单失败')
+    load()
   } finally {
     ordering.value = false
-  }
-}
-
-function openGroupOrder() {
-  orderUseGroupPrice.value = true
-  orderDialogVisible.value = true
-}
-
-async function handleJoinGroup() {
-  if (!auth.isLoggedIn) {
-    router.push({ path: '/login', query: { redirect: route.fullPath } })
-    return
-  }
-  groupLoading.value = true
-  try {
-    const res = await productApi.joinGroupBuy(route.params.id)
-    groupBuy.value = res.groupBuy
-    ElMessage.success(groupBuy.value.isFull ? '拼单已满员，可享拼单价下单' : '已加入拼单')
-  } catch (e) {
-    ElMessage.error(e.message || '加入失败')
-  } finally {
-    groupLoading.value = false
-  }
-}
-
-async function handleLeaveGroup() {
-  groupLoading.value = true
-  try {
-    const res = await productApi.leaveGroupBuy(route.params.id)
-    groupBuy.value = res.groupBuy
-    ElMessage.success('已退出拼单')
-  } catch (e) {
-    ElMessage.error(e.message || '操作失败')
-  } finally {
-    groupLoading.value = false
   }
 }
 
@@ -381,16 +283,6 @@ onMounted(load)
 .price-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .price { color: #f56c6c; font-size: 28px; font-weight: 700; margin: 0; }
 .actions { margin: 20px 0; display: flex; gap: 12px; flex-wrap: wrap; }
-.group-buy-card { margin: 16px 0; }
-.group-buy-card :deep(.el-card__header) {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.group-desc { margin: 0 0 12px; font-size: 14px; color: var(--app-muted); }
-.group-price { color: #f56c6c; font-size: 18px; }
-.group-count { margin: 8px 0 12px; font-size: 13px; color: var(--app-muted); }
-.group-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .seller { display: flex; gap: 12px; align-items: center; }
 .desc { white-space: pre-wrap; line-height: 1.6; }
 </style>

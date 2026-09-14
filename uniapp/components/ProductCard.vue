@@ -8,15 +8,11 @@
         lazy-load
         @error="onImageError"
       />
-      <view v-if="product.tradeMode === 'exchange'" class="badge warn">换物</view>
-      <view v-else-if="groupBuy" class="badge danger">拼单</view>
-      <view v-else-if="product.sellerType === 'merchant'" class="badge warn">商家</view>
     </view>
     <view class="info">
       <text class="title">{{ product.title }}</text>
       <view class="price-row">
         <text class="price">{{ priceText }}</text>
-        <text v-if="origPriceText" class="orig">{{ origPriceText }}</text>
       </view>
       <text class="meta muted" @tap.stop="goSeller">{{ sellerName }} · {{ conditionText }}</text>
     </view>
@@ -63,23 +59,7 @@ function onImageError() {
   }
 }
 
-const groupBuy = computed(
-  () =>
-    props.product.tradeMode !== 'exchange' &&
-    props.product.groupBuy?.enabled &&
-    props.product.groupBuy?.status === 'open' &&
-    props.product.groupBuy?.groupPrice > 0
-)
-
-const priceText = computed(() => {
-  if (groupBuy.value) return `拼 ¥${props.product.groupBuy.groupPrice}`
-  return formatPrice(props.product.price, props.product.tradeMode)
-})
-
-const origPriceText = computed(() => {
-  if (!groupBuy.value || !props.product.price) return ''
-  return `¥${props.product.price}`
-})
+const priceText = computed(() => formatPrice(props.product.price))
 
 const conditionText = computed(() => CONDITIONS[props.product.condition] || props.product.condition || '')
 const sellerName = computed(() => props.product.sellerId?.nickname || '卖家')
@@ -132,19 +112,6 @@ export default {
   background: #eef2f7;
 }
 
-.badge {
-  position: absolute;
-  top: 12rpx;
-  left: 12rpx;
-  font-size: 20rpx;
-  padding: 4rpx 12rpx;
-  border-radius: 8rpx;
-  color: #fff;
-}
-
-.badge.warn { background: #e6a23c; }
-.badge.danger { background: #f56c6c; }
-
 .info {
   padding: 14rpx 16rpx 18rpx;
 }
@@ -173,12 +140,6 @@ export default {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.orig {
-  color: #c0c4cc;
-  font-size: 22rpx;
-  text-decoration: line-through;
 }
 
 .meta {

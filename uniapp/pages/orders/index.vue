@@ -43,7 +43,6 @@
             <view class="info">
               <text class="title">{{ item.productId?.title }}</text>
               <text class="price">¥{{ item.price }}</text>
-              <text v-if="item.isGroupBuy" class="tag danger inline">拼单价</text>
               <text class="peer muted">{{ item.peerLabel }}：{{ item.peerName }}</text>
               <text v-if="item.paymentHint" class="pay-hint">{{ item.paymentHint }}</text>
             </view>

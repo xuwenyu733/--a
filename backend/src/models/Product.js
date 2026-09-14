@@ -7,12 +7,9 @@ const productSchema = new mongoose.Schema(
     sellerType: { type: String, enum: ['student', 'merchant'], required: true },
     title: { type: String, required: true, trim: true, maxlength: 80 },
     description: { type: String, default: '', maxlength: 2000 },
-    tradeMode: {
-      type: String,
-      enum: ['sell', 'exchange'],
-      default: 'sell',
-    },
     price: { type: Number, required: true, min: 0 },
+    /** 可售库存；下单扣减可为 0，为 0 时自动下架；发布/编辑时 API 要求 ≥1 */
+    stock: { type: Number, required: true, min: 0, default: 1 },
     originalPrice: { type: Number, default: null, min: 0 },
     category: {
       type: String,
@@ -33,18 +30,6 @@ const productSchema = new mongoose.Schema(
     location: { type: String, default: '' },
     searchText: { type: String, default: '' },
     deletedAt: { type: Date, default: null },
-    groupBuy: {
-      enabled: { type: Boolean, default: false },
-      minCount: { type: Number, default: 2, min: 2, max: 20 },
-      groupPrice: { type: Number, default: 0, min: 0 },
-      status: { type: String, enum: ['open', 'success', 'cancelled'], default: 'open' },
-      participants: [
-        {
-          userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-          joinedAt: { type: Date, default: Date.now },
-        },
-      ],
-    },
   },
   { timestamps: true }
 )
@@ -56,6 +41,5 @@ productSchema.index({ regionId: 1, status: 1, price: 1 })
 productSchema.index({ sellerId: 1, createdAt: -1 })
 productSchema.index({ title: 'text', description: 'text' })
 productSchema.index({ searchText: 1 })
-productSchema.index({ 'groupBuy.enabled': 1, status: 1, regionId: 1 })
 
 export default mongoose.model('Product', productSchema)

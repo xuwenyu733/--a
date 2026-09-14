@@ -17,7 +17,7 @@
     </swiper>
 
     <view class="hero card">
-      <text class="hero-title">🎓 校园市集</text>
+      <text class="hero-title">🎓 校园生活服务平台</text>
       <text class="hero-sub muted">二手 · 跑腿 · 简历 · 仅限本校师生</text>
       <view class="entry-grid">
         <view class="entry-item" @tap="goMarket">
@@ -43,20 +43,6 @@
       <view class="grid-wrap">
         <view class="grid-2">
           <view v-for="p in recommended" :key="p._id" class="grid-2-item">
-            <ProductCard :product="p" />
-          </view>
-        </view>
-      </view>
-    </view>
-
-    <view v-if="groupBuyList.length" class="section">
-      <view class="section-header">
-        <text class="section-title">🛒 拼单专区</text>
-        <text class="link" @tap="goGroupBuy">更多</text>
-      </view>
-      <view class="grid-wrap">
-        <view class="grid-2">
-          <view v-for="p in groupBuyList" :key="p._id" class="grid-2-item">
             <ProductCard :product="p" />
           </view>
         </view>
@@ -106,7 +92,6 @@ import { openPageSafe } from '@/utils/navigate'
 
 const products = ref([])
 const recommended = ref([])
-const groupBuyList = ref([])
 const platform = ref({ banners: [], announcement: '' })
 const page = ref(1)
 const hasMore = ref(true)
@@ -117,7 +102,7 @@ const loggedIn = ref(false)
 let firstShow = true
 
 const DEFAULT_BANNERS = [
-  { title: '闲置交易', subtitle: '本校面交 · 零手续费', link: '/pages/products/list' },
+  { title: '校园二手', subtitle: '本校面交 · 零手续费', link: '/pages/products/list' },
   { title: '校园跑腿', subtitle: '外卖代取 · 快递代取', link: '/pages/delivery/index' },
 ]
 
@@ -196,21 +181,13 @@ async function loadPlatform() {
 async function loadSideSections() {
   try {
     const regionId = await ensureGuestRegion()
-    const [rec, group] = await Promise.all([
-      getRecommended({ regionId, limit: 4 }).catch((err) => {
-        console.warn('getRecommended failed', err)
-        return { list: [] }
-      }),
-      getProducts({ regionId, pageSize: 4, groupBuyOnly: true }).catch((err) => {
-        console.warn('getGroupBuyProducts failed', err)
-        return { list: [] }
-      }),
-    ])
+    const rec = await getRecommended({ regionId, limit: 4 }).catch((err) => {
+      console.warn('getRecommended failed', err)
+      return { list: [] }
+    })
     recommended.value = withCover(rec.list)
-    groupBuyList.value = withCover(group.list)
   } catch {
     recommended.value = []
-    groupBuyList.value = []
   }
 }
 
@@ -263,11 +240,7 @@ function goSearch() {
   openPageSafe('/pages/search/index')
 }
 function goMarketSort(sort) {
-  uni.setStorageSync('market_filter', { sort, groupBuyOnly: false })
-  uni.switchTab({ url: '/pages/products/list' })
-}
-function goGroupBuy() {
-  uni.setStorageSync('market_filter', { groupBuyOnly: true })
+  uni.setStorageSync('market_filter', { sort })
   uni.switchTab({ url: '/pages/products/list' })
 }
 function goLogin() { openPageSafe('/pages/login/login') }

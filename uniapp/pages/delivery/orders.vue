@@ -41,31 +41,27 @@
           empty-text="暂无订单"
           @retry="load"
         />
-        <view v-for="item in orders" :key="item._id" class="card order-card">
-          <view class="head">
-            <text class="tag">{{ typeLabel(item.type) }}</text>
-            <text class="tag" :class="statusClass(item)">{{ statusLabel(item) }}</text>
-            <text class="price">¥{{ item.fee }}</text>
-          </view>
-          <text v-if="item.title" class="title">{{ item.title }}</text>
-          <text v-if="item.deliveryTimeLabel" class="line">预计送达：{{ item.deliveryTimeLabel }}</text>
-          <text class="line">实际送达：{{ item.actualDeliveryLabel || '--' }}</text>
-          <text v-if="roleTab === 'courier' && item.deliveryOverdue" class="line warn">已超时</text>
-          <text class="line">区域：{{ item.zoneId?.name }}</text>
-          <text class="line">取：{{ item.pickupAddress }}</text>
-          <text class="line">送：{{ item.dropoffAddress }}</text>
-          <text v-if="item.contactPhone && roleTab === 'courier'" class="line">发布人电话：{{ item.contactPhone }}</text>
-          <text v-if="item.courierId && roleTab === 'poster'" class="line muted">
-            骑手：{{ item.courierId?.nickname || item.courierId?.phone || '—' }}
-          </text>
-          <text v-if="item.posterId && roleTab === 'courier'" class="line muted">
-            发布人：{{ item.posterId?.nickname || item.posterId?.phone || '—' }}
-          </text>
-          <text v-if="item.description" class="desc muted">{{ item.description }}</text>
-          <text v-if="item.remark" class="desc muted">备注：{{ item.remark }}</text>
-          <text class="time muted">{{ formatTime(item.createdAt) }}</text>
-
-          <view class="actions">
+        <DeliveryOrderCard
+          v-for="item in orders"
+          :key="item._id"
+          :type-label="typeLabel(item.type)"
+          :status-label="statusLabel(item)"
+          :status-class="statusClass(item)"
+          :fee="item.fee"
+          :title="item.title || typeLabel(item.type)"
+          show-time-row
+          :delivery-time-label="item.deliveryTimeLabel"
+          :actual-delivery-label="item.actualDeliveryLabel"
+          :warn-text="roleTab === 'courier' && item.deliveryOverdue ? '配送已超时' : ''"
+          :pickup-address="item.pickupAddress"
+          :dropoff-address="item.dropoffAddress"
+          :info-lines="orderInfoLines(item)"
+          :description="item.description"
+          :remark="item.remark"
+          :zone-name="item.zoneId?.name"
+          :created-at="formatTime(item.createdAt)"
+        >
+          <template #actions>
             <button v-if="peerPhone(item)" size="mini" @tap="callPhone(peerPhone(item))">联系对方</button>
             <button v-if="canRepost(item)" size="mini" @tap="goRepost(item)">修改</button>
             <button v-if="canCancel(item)" size="mini" type="warn" @tap="cancel(item)">取消</button>
@@ -81,8 +77,8 @@
               type="primary"
               @tap="confirmUpdate(item, 'completed', '确认已送达并完成订单？')"
             >确认完成</button>
-          </view>
-        </view>
+          </template>
+        </DeliveryOrderCard>
       </view>
     </scroll-view>
   </view>
@@ -108,6 +104,7 @@ import { formatTime } from '@/utils/format'
 import { saveRepostDraft } from '@/utils/deliveryRepost'
 import LoadState from '@/components/LoadState.vue'
 import ListCardSkeleton from '@/components/ListCardSkeleton.vue'
+import DeliveryOrderCard from '@/components/DeliveryOrderCard.vue'
 
 const user = ref(null)
 const loading = ref(false)
@@ -180,6 +177,20 @@ function peerPhone(item) {
     return item.courierId?.phone || ''
   }
   return item.contactPhone || item.posterId?.phone || ''
+}
+
+function orderInfoLines(item) {
+  const lines = []
+  if (item.contactPhone && roleTab.value === 'courier') {
+    lines.push({ label: '电话', value: item.contactPhone })
+  }
+  if (item.courierId && roleTab.value === 'poster') {
+    lines.push({ label: '骑手', value: item.courierId?.nickname || item.courierId?.phone || '—' })
+  }
+  if (item.posterId && roleTab.value === 'courier') {
+    lines.push({ label: '发布人', value: item.posterId?.nickname || item.posterId?.phone || '—' })
+  }
+  return lines
 }
 
 function canCancel(item) {
@@ -310,14 +321,6 @@ function callPhone(phone) {
   font-size: 24rpx;
 }
 .status-tab.active { background: #ecf5ff; color: #409eff; }
-.head { display: flex; gap: 12rpx; flex-wrap: wrap; align-items: center; margin-bottom: 12rpx; }
-.title { display: block; font-weight: 600; font-size: 30rpx; margin-bottom: 8rpx; }
-.line { display: block; font-size: 26rpx; margin-bottom: 6rpx; }
-.line.warn { color: #f56c6c; font-weight: 600; }
-.desc { display: block; font-size: 24rpx; line-height: 1.5; margin-bottom: 4rpx; }
-.time { display: block; margin-top: 8rpx; font-size: 22rpx; }
-.price { color: #f56c6c; font-weight: 700; margin-left: auto; }
-.actions { margin-top: 16rpx; display: flex; gap: 12rpx; flex-wrap: wrap; }
 .tag.primary { background: #ecf5ff; color: #409eff; }
 .tag.danger { background: #fef0f0; color: #f56c6c; }
 </style>

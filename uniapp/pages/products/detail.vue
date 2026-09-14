@@ -25,25 +25,8 @@
       <text class="title">{{ product.title }}</text>
       <text class="price">{{ priceText }}</text>
       <text class="muted meta-line">成色：{{ conditionText }} · {{ product.location || '校内面交' }}</text>
+      <text v-if="canSeeStock" class="muted meta-line">库存：{{ product.stock ?? 0 }}</text>
       <text class="desc">{{ product.description || '卖家很懒，什么都没写' }}</text>
-    </view>
-
-    <view v-if="groupBuy?.enabled" class="card group-card">
-      <view class="group-head">
-        <text class="section-title">拼单优惠</text>
-        <text class="tag danger">¥{{ groupBuy.groupPrice }}</text>
-      </view>
-      <view class="progress-wrap">
-        <view class="progress-bar">
-          <view class="progress-fill" :style="{ width: groupProgress + '%' }" />
-        </view>
-        <text class="muted">{{ groupBuy.participantCount }}/{{ groupBuy.minCount }} 人 · 还差 {{ groupBuy.remaining }} 人</text>
-      </view>
-      <view class="group-actions">
-        <button v-if="canJoinGroup" size="mini" type="primary" @tap="handleJoinGroup">参与拼单</button>
-        <button v-if="groupBuy.joined && !groupBuy.isFull" size="mini" @tap="handleLeaveGroup">退出拼单</button>
-        <text v-if="groupBuy.joined && groupBuy.isFull" class="tag success">已满员，可下单</text>
-      </view>
     </view>
 
     <view class="card seller">
@@ -65,10 +48,8 @@
     <view class="footer-bar">
       <button class="fav-btn share-btn" open-type="share" size="mini">分享</button>
       <button class="fav-btn" size="mini" @tap="toggleFavorite">{{ favorited ? '已收藏' : '收藏' }}</button>
-      <button v-if="canGroupOrder" class="buy-btn" type="primary" @tap="buyNow(true)">拼单价下单</button>
-      <button v-else-if="canBuy" class="buy-btn" type="primary" @tap="buyNow(false)">立即购买</button>
-      <button v-else-if="!loggedIn && product.status === 'on_sale' && !isOwner && !isExchange" class="buy-btn" type="primary" @tap="goLogin">登录购买</button>
-      <button v-else-if="isExchange && canContact" class="buy-btn" type="primary" @tap="contactSeller">联系协商</button>
+      <button v-if="canBuy" class="buy-btn" type="primary" @tap="buyNow">立即购买</button>
+      <button v-else-if="!loggedIn && product.status === 'on_sale' && !isOwner" class="buy-btn" type="primary" @tap="goLogin">登录购买</button>
       <button v-else class="buy-btn" type="primary" disabled>{{ buyDisabledLabel }}</button>
     </view>
   </view>
@@ -89,9 +70,9 @@ let shareImages = []
 
 export default {
   onShareAppMessage() {
-    if (!shareProduct) return { title: '校园市集', path: '/pages/index/index' }
+    if (!shareProduct) return { title: '校园二手', path: '/pages/index/index' }
     return {
-      title: shareProduct.title || '校园市集',
+      title: shareProduct.title || '校园二手',
       path: `/pages/products/detail?id=${shareProduct._id}`,
       imageUrl: shareImages[0] || '',
     }
@@ -106,8 +87,6 @@ import {
   getDetail,
   toggleFavorite as toggleFavoriteApi,
   contactSeller as contactSellerApi,
-  joinGroupBuy,
-  leaveGroupBuy,
 } from '@/api/product'
 import { create as createOrder } from '@/api/order'
 import { getUser, ensureLogin, isLoggedIn, saveSession, getAccessToken, getRefreshToken } from '@/utils/auth'
@@ -119,7 +98,6 @@ import LoadState from '@/components/LoadState.vue'
 
 const product = ref(null)
 const shop = ref(null)
-const groupBuy = ref(null)
 const images = ref([])
 const videoUrl = computed(() => getFileUrl(product.value?.video))
 const favorited = ref(false)
@@ -136,16 +114,19 @@ const isOwner = computed(() => {
   const sid = product.value?.sellerId?._id || product.value?.sellerId
   return sid?.toString() === user.value?._id?.toString()
 })
-const isExchange = computed(() => product.value?.tradeMode === 'exchange')
 const canContact = computed(() => product.value?.status === 'on_sale' && !isOwner.value)
+const canSeeStock = computed(() => {
+  if (!product.value || product.value.stock == null) return false
+  if (isOwner.value) return true
+  return user.value?.role === 'super_admin'
+})
 const canBuy = computed(
   () =>
     user.value &&
     user.value.role === 'student' &&
     user.value.studentVerified &&
     product.value?.status === 'on_sale' &&
-    !isOwner.value &&
-    !isExchange.value
+    !isOwner.value
 )
 const needVerify = computed(
   () =>
@@ -153,26 +134,13 @@ const needVerify = computed(
     user.value.role === 'student' &&
     !user.value.studentVerified &&
     product.value?.status === 'on_sale' &&
-    !isOwner.value &&
-    !isExchange.value
+    !isOwner.value
 )
-const canJoinGroup = computed(
-  () =>
-    canBuy.value &&
-    groupBuy.value?.enabled &&
-    groupBuy.value?.status === 'open' &&
-    !groupBuy.value.joined &&
-    !groupBuy.value.isFull
-)
-const canGroupOrder = computed(() => canBuy.value && groupBuy.value?.joined && groupBuy.value.isFull)
 
 const priceText = computed(() => {
   const p = product.value
   if (!p) return ''
-  if (groupBuy.value?.enabled && groupBuy.value.groupPrice > 0) {
-    return `拼单价 ¥${groupBuy.value.groupPrice}（原价 ¥${p.price}）`
-  }
-  return formatPrice(p.price, p.tradeMode)
+  return formatPrice(p.price)
 })
 const conditionText = computed(() => CONDITIONS[product.value?.condition] || product.value?.condition || '')
 const categoryLabel = computed(() => labelOf(CATEGORIES, product.value?.category))
@@ -182,16 +150,11 @@ const statusTagClass = computed(() => {
   if (product.value?.status === 'sold') return 'info'
   return 'warning'
 })
-const groupProgress = computed(() => {
-  if (!groupBuy.value?.minCount) return 0
-  return Math.min(100, Math.round((groupBuy.value.participantCount / groupBuy.value.minCount) * 100))
-})
 const buyDisabledLabel = computed(() => {
   if (isOwner.value) return '自己的商品'
   if (product.value?.status === 'sold') return '已售出'
   if (product.value?.status === 'off_shelf') return '已下架'
   if (needVerify.value) return '需学生认证'
-  if (isExchange.value) return '以物换物'
   return '暂不可购'
 })
 
@@ -238,7 +201,6 @@ async function loadDetail() {
     const p = res.product || res
     product.value = p
     shop.value = res.shop || null
-    groupBuy.value = res.groupBuy || null
     favorited.value = !!res.favorited
     images.value = (p.images || []).map(getFileUrl)
     shareProduct = p
@@ -290,49 +252,21 @@ function goVerify() {
   uni.navigateTo({ url: '/pages/user/verify-student' })
 }
 
-async function handleJoinGroup() {
-  if (!ensureLogin()) return
-  try {
-    const res = await joinGroupBuy(productId)
-    groupBuy.value = res.groupBuy
-    uni.showToast({ title: '已参与拼单', icon: 'success' })
-  } catch (e) {
-    uni.showToast({ title: e.message || '参与失败', icon: 'none' })
-  }
-}
-
-async function handleLeaveGroup() {
-  uni.showModal({
-    title: '退出拼单',
-    content: '确定退出当前拼单？',
-    success: async (res) => {
-      if (!res.confirm) return
-      try {
-        const data = await leaveGroupBuy(productId)
-        groupBuy.value = data.groupBuy
-        uni.showToast({ title: '已退出', icon: 'none' })
-      } catch (e) {
-        uni.showToast({ title: e.message || '操作失败', icon: 'none' })
-      }
-    },
-  })
-}
-
-async function buyNow(useGroupPrice) {
+async function buyNow() {
   if (!ensureLogin()) return
   const p = product.value
-  const price = useGroupPrice ? groupBuy.value.groupPrice : p.price
   uni.showModal({
     title: '确认下单',
-    content: useGroupPrice ? `以拼单价 ¥${price} 下单？` : `以 ¥${price} 下单？`,
+    content: `以 ¥${p.price} 下单？`,
     success: async (res) => {
       if (!res.confirm) return
       try {
-        await createOrder({ productId: p._id, useGroupPrice: !!useGroupPrice })
+        await createOrder({ productId: p._id })
         uni.showToast({ title: '下单成功', icon: 'success' })
         setTimeout(() => uni.navigateTo({ url: '/pages/orders/index' }), 500)
       } catch (e) {
         uni.showToast({ title: e.message || '下单失败', icon: 'none' })
+        loadDetail()
       }
     },
   })
@@ -353,11 +287,6 @@ async function buyNow(useGroupPrice) {
 .seller { display: flex; justify-content: space-between; align-items: center; }
 .seller-actions { display: flex; gap: 12rpx; }
 .shop-name { display: block; margin-top: 8rpx; }
-.group-card .group-head { display: flex; justify-content: space-between; align-items: center; }
-.progress-wrap { margin-top: 16rpx; }
-.progress-bar { height: 12rpx; background: #ebeef5; border-radius: 6rpx; overflow: hidden; margin-bottom: 8rpx; }
-.progress-fill { height: 100%; background: #409eff; border-radius: 6rpx; }
-.group-actions { margin-top: 16rpx; display: flex; gap: 12rpx; align-items: center; }
 .tip-card { background: #fdf6ec; color: #e6a23c; font-size: 26rpx; line-height: 1.5; display: flex; flex-direction: column; gap: 16rpx; }
 .fav-btn { min-width: 140rpx; }
 .buy-btn { flex: 1; }

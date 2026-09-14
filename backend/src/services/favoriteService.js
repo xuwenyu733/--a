@@ -52,6 +52,7 @@ export async function listFavorites(userId, { page = 1, pageSize = 20 } = {}) {
   const products = productIds.length
     ? await Product.find(activeProductFilter({ _id: { $in: productIds } }))
         .populate('sellerId', 'nickname avatar role studentVerified')
+        .select('-stock')
         .lean()
     : []
 

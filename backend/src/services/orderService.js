@@ -6,10 +6,10 @@ import { PRODUCT_STATUS } from '../constants/product.js'
 import { activeProductFilter } from '../utils/productQuery.js'
 import { activeOrderFilter } from '../utils/orderQuery.js'
 import { notifyUser } from './notificationService.js'
-import { assertGroupBuyOrderPrice } from './groupBuyService.js'
 import { paginationMeta } from '../utils/pagination.js'
 
-export async function createOrder(buyer, { productId, remark, useGroupPrice = false }) {
+export async function createOrder(buyer, { productId, remark }) {
+  const qty = 1
   const product = await Product.findOne(activeProductFilter({ _id: productId }))
   const existing = product
     ? await Order.findOne(
@@ -27,10 +27,11 @@ export async function createOrder(buyer, { productId, remark, useGroupPrice = fa
       ? {
           status: product.status,
           sellerId: product.sellerId,
-          tradeMode: product.tradeMode,
+          stock: product.stock,
         }
       : null,
     hasActiveOrder: Boolean(existing),
+    quantity: qty,
   })
   if (!check.ok) {
     const err = new Error(check.message)
@@ -38,7 +39,34 @@ export async function createOrder(buyer, { productId, remark, useGroupPrice = fa
     throw err
   }
 
-  const orderPrice = useGroupPrice ? assertGroupBuyOrderPrice(product, buyer._id) : product.price
+  // 原子扣减库存；库存为 0 时自动下架
+  const reserved = await Product.findOneAndUpdate(
+    activeProductFilter({
+      _id: productId,
+      status: PRODUCT_STATUS.ON_SALE,
+      stock: { $gte: qty },
+    }),
+    [
+      {
+        $set: {
+          stock: { $subtract: ['$stock', qty] },
+          status: {
+            $cond: [
+              { $lte: [{ $subtract: ['$stock', qty] }, 0] },
+              PRODUCT_STATUS.OFF_SHELF,
+              '$status',
+            ],
+          },
+        },
+      },
+    ],
+    { new: true }
+  )
+  if (!reserved) {
+    const err = new Error('商品已无库存或不可购买')
+    err.code = 40000
+    throw err
+  }
 
   const order = await Order.create({
     regionId: product.regionId,
@@ -46,10 +74,10 @@ export async function createOrder(buyer, { productId, remark, useGroupPrice = fa
     buyerId: buyer._id,
     sellerId: product.sellerId,
     sellerType: product.sellerType,
-    price: orderPrice,
+    quantity: qty,
+    price: product.price,
     remark: remark || '',
     status: ORDER_STATUS.CONFIRMED,
-    isGroupBuy: !!useGroupPrice,
   })
 
   await notifyUser(product.sellerId, {
@@ -232,12 +260,22 @@ export async function updateOrderStatus(orderId, userId, { status, cancelReason 
   order.status = status
   if (status === ORDER_STATUS.CANCELLED) {
     order.cancelReason = cancelReason || ''
+    const qty = Math.max(1, Number(order.quantity) || 1)
+    const productId = order.productId._id || order.productId
+    const prod = await Product.findById(productId).select('stock status')
+    const wasOutOfStock = prod && Number(prod.stock) <= 0
+    const patch = { $inc: { stock: qty } }
+    // 因售罄自动下架的，回补库存后重新上架
+    if (wasOutOfStock && prod.status === PRODUCT_STATUS.OFF_SHELF) {
+      patch.$set = { status: PRODUCT_STATUS.ON_SALE }
+    } else if (prod?.status === PRODUCT_STATUS.SOLD) {
+      patch.$set = { status: PRODUCT_STATUS.ON_SALE }
+    }
+    await Product.findByIdAndUpdate(productId, patch)
   }
   if (status === ORDER_STATUS.COMPLETED) {
     order.completedAt = new Date()
-    await Product.findByIdAndUpdate(order.productId._id || order.productId, {
-      status: PRODUCT_STATUS.SOLD,
-    })
+    // 库存已在下单时扣减；售罄时已自动下架，完成订单不再改商品状态
     if (order.sellerType === 'merchant') {
       const MerchantProfile = (await import('../models/MerchantProfile.js')).default
       await MerchantProfile.findOneAndUpdate(

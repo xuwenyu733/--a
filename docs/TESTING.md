@@ -40,7 +40,6 @@ SMOKE_BASE_URL=http://127.0.0.1:3001/api/v1 node scripts/smoke-api.mjs
 | `auth.api.integration.test.js` | 注册、登录、refresh-token、logout、me |
 | `products.api.integration.test.js` | 发布、列表、收藏 |
 | `orders.api.integration.test.js` | 下单、列表、线下 mark-paid |
-| `groupBuy.api.integration.test.js` | 参团、满员、拼单价下单 |
 | `delivery.api.integration.test.js` | 配送区、发单、接单、完成 |
 | `addresses.api.integration.test.js` | 收货地址 CRUD、设默认 |
 | `payments.api.integration.test.js` | 沙箱支付、模拟付款 |
@@ -101,7 +100,6 @@ GitHub Actions（`.github/workflows/ci.yml`）在 push/PR 时执行：
 共享种子数据：
 
 - `tests/helpers/seedTrade.js` — 买卖家 + 商品
-- `tests/helpers/seedGroupBuy.js` — 拼单商品
 - `tests/helpers/seedDelivery.js` — 跑腿场景
 - `tests/helpers/mongoMemory.js` — 内存 MongoDB
 

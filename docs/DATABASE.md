@@ -11,7 +11,6 @@ MongoDB 索引定义在各自 Model 的 Schema 中。改 Schema 后重启服务�
 | `{ sellerId, createdAt }` | 卖家商品管理 |
 | `{ title: text, description: text }` | 全文搜索 |
 | `{ searchText }` | 拼音/关键词检索 |
-| `{ groupBuy.enabled, status, regionId }` | 拼单商品 |
 
 ## 订单 Order
 

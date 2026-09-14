@@ -9,6 +9,4 @@ export const update = (id, data) => request({ url: `/products/${id}`, method: 'P
 export const updateStatus = (id, status) => request({ url: `/products/${id}/status`, method: 'PATCH', data: { status } })
 export const toggleFavorite = (id) => request({ url: `/products/${id}/favorite`, method: 'POST' })
 export const getFavorites = (params) => request({ url: '/products/favorites', data: params })
-export const joinGroupBuy = (id) => request({ url: `/products/${id}/group-buy/join`, method: 'POST' })
-export const leaveGroupBuy = (id) => request({ url: `/products/${id}/group-buy/leave`, method: 'POST' })
 export const contactSeller = (productId) => request({ url: '/chat/contact-seller', method: 'POST', data: { productId } })
