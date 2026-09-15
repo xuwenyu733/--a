@@ -42,7 +42,7 @@
           <text class="quick-label">订单</text>
         </view>
         <view class="quick-item" @tap="goCart">
-          <image class="quick-icon-img" :src="mineIcon('favorites')" mode="aspectFit" />
+          <image class="quick-icon-img" :src="mineIcon('cart')" mode="aspectFit" />
           <text class="quick-label">购物车</text>
         </view>
         <view class="quick-item" @tap="goFavorites">
@@ -106,7 +106,7 @@
           <text class="menu-arrow">›</text>
         </view>
         <view class="menu-item" @tap="goCart">
-          <image class="menu-icon-img" :src="menuIcon('favorites')" mode="aspectFit" />
+          <image class="menu-icon-img" :src="menuIcon('cart')" mode="aspectFit" />
           <text class="menu-label">购物车</text>
           <text class="menu-arrow">›</text>
         </view>

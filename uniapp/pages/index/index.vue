@@ -1,8 +1,10 @@
 <template>
   <view class="container">
-    <view class="home-search" @tap="goSearch">
-      <text class="home-search-ico">🔍</text>
-      <text class="home-search-ph">搜索商品、用户名或好友号</text>
+    <view class="home-search-sticky">
+      <view class="home-search" @tap="goSearch">
+        <text class="home-search-ico">🔍</text>
+        <text class="home-search-ph">搜索商品、用户名或好友号</text>
+      </view>
     </view>
 
     <view v-if="platform.announcement" class="announcement">{{ platform.announcement }}</view>
@@ -283,11 +285,20 @@ function goLink(link) {
   box-sizing: border-box;
 }
 
+.home-search-sticky {
+  position: -webkit-sticky;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  margin: 0 -24rpx;
+  padding: 16rpx 24rpx 8rpx;
+  background: #f5f7fa;
+}
+
 .home-search {
   display: flex;
   align-items: center;
   gap: 12rpx;
-  margin: 16rpx 0 8rpx;
   padding: 18rpx 24rpx;
   background: #fff;
   border-radius: 40rpx;

@@ -1,28 +1,30 @@
 <template>
   <view class="page">
-    <!-- 顶部搜索区 -->
+    <!-- 标题可上滑；搜索栏为页面级 sticky，勿再包进父容器 -->
     <view class="header">
-      <view class="header-bg" />
-      <view class="header-body">
-        <text class="header-title">🛍️ 校园市集</text>
-        <text class="header-sub">本校闲置 · 当面验货 · 零手续费</text>
-        <view class="search-wrap">
-          <view class="search-field">
-            <text class="search-icon">🔍</text>
-            <input
-              class="search-input"
-              placeholder="搜索商品名称、描述…"
-              placeholder-class="ph"
-              v-model="keyword"
-              confirm-type="search"
-              @confirm="onSearch"
-              @input="onKeywordInput"
-            />
-          </view>
-          <view class="search-btn" @tap="onSearch">搜索</view>
+      <text class="header-title">🛍️ 校园市集</text>
+      <text class="header-sub">本校闲置 · 当面验货 · 零手续费</text>
+    </view>
+
+    <view class="sticky-bar" :class="{ 'is-fixed': searchPinned }">
+      <CartEntryBtn ref="cartBtnRef" variant="toolbar" />
+      <view class="search-wrap">
+        <view class="search-field">
+          <text class="search-icon">🔍</text>
+          <input
+            class="search-input"
+            placeholder="搜索商品名称、描述…"
+            placeholder-class="ph"
+            v-model="keyword"
+            confirm-type="search"
+            @confirm="onSearch"
+            @input="onKeywordInput"
+          />
         </view>
+        <view class="search-btn" @tap="onSearch">搜索</view>
       </view>
     </view>
+    <view v-if="searchPinned" class="sticky-placeholder" :style="{ height: stickyBarHeight + 'px' }" />
 
     <view class="main">
       <!-- 搜索历史 & 热门 -->
@@ -110,7 +112,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { onLoad, onShow, onPullDownRefresh, onReachBottom, onUnload } from '@dcloudio/uni-app'
+import { onLoad, onShow, onReady, onPageScroll, onPullDownRefresh, onReachBottom, onUnload } from '@dcloudio/uni-app'
 import config from '@/config/index'
 import { getFileUrl } from '@/utils/fileUrl'
 import { getProducts } from '@/api/product'
@@ -120,6 +122,7 @@ import { debounce, throttle } from '@/utils/debounce'
 import ProductCard from '@/components/ProductCard.vue'
 import LoadState from '@/components/LoadState.vue'
 import ProductGridSkeleton from '@/components/ProductGridSkeleton.vue'
+import CartEntryBtn from '@/components/CartEntryBtn.vue'
 
 /** 每页固定 30 条，触底再拉取下一页 */
 const PAGE_SIZE = config.PAGE_SIZE || 30
@@ -136,6 +139,10 @@ const loadingMore = ref(false)
 const loadError = ref('')
 const categories = CATEGORIES
 const sortOptions = SORT_OPTIONS
+const cartBtnRef = ref(null)
+const searchPinned = ref(false)
+const stickyBarHeight = ref(0)
+let headerHeightPx = 0
 let firstShow = true
 /** 请求锁，避免并发重复拉取 */
 let fetching = false
@@ -177,7 +184,33 @@ onLoad((options) => {
   loadProducts(true)
 })
 
+onReady(() => {
+  measureStickyMetrics()
+})
+
+const onScrollPinned = throttle((e) => {
+  const top = e?.scrollTop ?? 0
+  searchPinned.value = top >= Math.max(0, headerHeightPx - 1)
+}, 50)
+onPageScroll(onScrollPinned)
+
+function measureStickyMetrics() {
+  uni.createSelectorQuery()
+    .select('.header')
+    .boundingClientRect()
+    .select('.sticky-bar')
+    .boundingClientRect()
+    .exec((res) => {
+      const headerRect = res?.[0]
+      const barRect = res?.[1]
+      if (headerRect?.height) headerHeightPx = headerRect.height
+      if (barRect?.height) stickyBarHeight.value = barRect.height
+    })
+}
+
 onShow(() => {
+  cartBtnRef.value?.refresh?.()
+  measureStickyMetrics()
   if (firstShow) {
     firstShow = false
     return
@@ -197,7 +230,10 @@ function applyOptions(options = {}) {
 
 /** 下拉刷新防抖 */
 const refreshDebounced = debounce(() => {
-  loadProducts(true).finally(() => uni.stopPullDownRefresh())
+  loadProducts(true).finally(() => {
+    cartBtnRef.value?.refresh?.()
+    uni.stopPullDownRefresh()
+  })
 }, 300)
 onPullDownRefresh(() => refreshDebounced())
 
@@ -218,6 +254,7 @@ onUnload(() => {
   refreshDebounced.cancel?.()
   loadMoreThrottled.cancel?.()
   searchDebounced.cancel?.()
+  onScrollPinned.cancel?.()
 })
 
 function onSearch() {
@@ -291,22 +328,10 @@ async function loadProducts(reset) {
   background: #f0f2f5;
 }
 
-/* 顶部 */
+/* 顶部：标题与搜索同色无圆角；sticky 必须是 .page 的直接子节点 */
 .header {
-  position: relative;
-  padding: 32rpx 24rpx 48rpx;
-  overflow: hidden;
-}
-
-.header-bg {
-  position: absolute;
-  inset: 0;
+  padding: 32rpx 24rpx 8rpx;
   background: linear-gradient(135deg, #409eff 0%, #67c23a 100%);
-  border-radius: 0 0 32rpx 32rpx;
-}
-
-.header-body {
-  position: relative;
 }
 
 .header-title {
@@ -321,10 +346,33 @@ async function loadProducts(reset) {
   margin-top: 6rpx;
   font-size: 22rpx;
   color: rgba(255, 255, 255, 0.88);
-  margin-bottom: 24rpx;
+}
+
+.sticky-bar {
+  position: relative;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  padding: 12rpx 24rpx 20rpx;
+  background: linear-gradient(135deg, #409eff 0%, #67c23a 100%);
+  box-sizing: border-box;
+}
+
+.sticky-bar.is-fixed {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+
+.sticky-placeholder {
+  width: 100%;
+  background: transparent;
 }
 
 .search-wrap {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -433,7 +481,6 @@ async function loadProducts(reset) {
 }
 
 .main {
-  margin-top: -16rpx;
   padding: 0 24rpx 32rpx;
   position: relative;
   z-index: 1;

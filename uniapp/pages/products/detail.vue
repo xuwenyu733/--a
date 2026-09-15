@@ -45,14 +45,28 @@
       <button size="mini" type="primary" @tap="goVerify">去学生认证</button>
     </view>
 
-    <view class="footer-bar">
-      <button class="fav-btn share-btn" open-type="share" size="mini">分享</button>
-      <button class="fav-btn" size="mini" @tap="toggleFavorite">{{ favorited ? '已收藏' : '收藏' }}</button>
-      <button class="cart-entry" size="mini" @tap="goCart">购物车</button>
-      <button v-if="canBuy" class="cart-btn" @tap="addCart">加入购物车</button>
-      <button v-if="canBuy" class="buy-btn" type="primary" @tap="buyNow">立即下单</button>
-      <button v-else-if="!loggedIn && product.status === 'on_sale' && !isOwner" class="buy-btn" type="primary" @tap="goLogin">登录购买</button>
-      <button v-else class="buy-btn" type="primary" disabled>{{ buyDisabledLabel }}</button>
+    <view class="footer-bar detail-footer">
+      <view class="footer-side">
+        <CartEntryBtn ref="cartBtnRef" variant="footer" label="购物车" />
+        <button class="side-item" open-type="share" hover-class="side-item-hover">
+          <text class="side-ico">↗</text>
+          <text class="side-lab">分享</text>
+        </button>
+        <view class="side-item" @tap="toggleFavorite">
+          <text class="side-ico">{{ favorited ? '★' : '☆' }}</text>
+          <text class="side-lab">{{ favorited ? '已藏' : '收藏' }}</text>
+        </view>
+      </view>
+      <view class="footer-main">
+        <button v-if="canBuy" class="action-btn cart-btn" @tap="addCart">加入购物车</button>
+        <button v-if="canBuy" class="action-btn buy-btn" @tap="buyNow">立即下单</button>
+        <button
+          v-else-if="!loggedIn && product.status === 'on_sale' && !isOwner"
+          class="action-btn buy-btn"
+          @tap="goLogin"
+        >登录购买</button>
+        <button v-else class="action-btn buy-btn is-disabled" disabled>{{ buyDisabledLabel }}</button>
+      </view>
     </view>
   </view>
   <view v-else-if="loading" class="empty">加载中…</view>
@@ -98,6 +112,7 @@ import { getFileUrl } from '@/utils/fileUrl'
 import { CONDITIONS, formatPrice } from '@/utils/format'
 import { CATEGORIES, STATUS_LABELS, labelOf } from '@/constants/product'
 import LoadState from '@/components/LoadState.vue'
+import CartEntryBtn from '@/components/CartEntryBtn.vue'
 
 const product = ref(null)
 const shop = ref(null)
@@ -108,6 +123,7 @@ const loading = ref(true)
 const loadError = ref('')
 const loggedIn = ref(false)
 const userSnapshot = ref(null)
+const cartBtnRef = ref(null)
 let productId = ''
 let lastRefreshTime = 0
 let firstShow = true
@@ -166,7 +182,10 @@ onLoad((options) => {
   loadDetail()
 })
 
-onShow(refreshSession)
+onShow(async () => {
+  await refreshSession()
+  cartBtnRef.value?.refresh?.()
+})
 
 async function refreshSession() {
   loggedIn.value = isLoggedIn()
@@ -255,17 +274,13 @@ function goVerify() {
   uni.navigateTo({ url: '/pages/user/verify-student' })
 }
 
-function goCart() {
-  if (!ensureLogin()) return
-  uni.navigateTo({ url: '/pages/cart/index' })
-}
-
 async function addCart() {
   if (!ensureLogin()) return
   const p = product.value
   try {
     await addToCart({ productId: p._id, quantity: 1 })
     uni.showToast({ title: '已加入购物车', icon: 'success' })
+    cartBtnRef.value?.refresh?.()
   } catch (e) {
     uni.showToast({ title: e.message || '加购失败', icon: 'none' })
     loadDetail()
@@ -308,15 +323,95 @@ async function buyNow() {
 .seller-actions { display: flex; gap: 12rpx; }
 .shop-name { display: block; margin-top: 8rpx; }
 .tip-card { background: #fdf6ec; color: #e6a23c; font-size: 26rpx; line-height: 1.5; display: flex; flex-direction: column; gap: 16rpx; }
-.fav-btn { min-width: 110rpx; }
-.cart-entry { min-width: 110rpx; }
-.cart-btn {
+
+.detail-footer {
+  gap: 12rpx;
+  padding: 12rpx 20rpx calc(12rpx + env(safe-area-inset-bottom));
+}
+
+.footer-side {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 4rpx;
+}
+
+.side-item {
+  width: 88rpx;
+  height: 88rpx;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4rpx;
+  line-height: 1.1;
+  font-size: inherit;
+  color: #606266;
+}
+
+.side-item::after {
+  border: none;
+}
+
+.side-item-hover {
+  opacity: 0.7;
+}
+
+.side-ico {
+  font-size: 32rpx;
+  line-height: 1;
+  color: #303133;
+}
+
+.side-lab {
+  font-size: 20rpx;
+  color: #909399;
+  line-height: 1;
+}
+
+.footer-main {
   flex: 1;
-  margin: 0 8rpx;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.action-btn {
+  flex: 1;
+  height: 72rpx;
+  margin: 0;
+  padding: 0 12rpx;
+  border-radius: 36rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  line-height: 72rpx;
+  border: none;
+}
+
+.action-btn::after {
+  border: none;
+}
+
+.cart-btn {
   background: #fff7e6;
   color: #e6a23c;
   border: 1rpx solid #f5dab1;
-  font-size: 26rpx;
 }
-.buy-btn { flex: 1.2; margin: 0; }
+
+.buy-btn {
+  background: #409eff;
+  color: #fff;
+}
+
+.buy-btn.is-disabled,
+.buy-btn[disabled] {
+  background: #c0c4cc;
+  color: #fff;
+  opacity: 1;
+}
 </style>
