@@ -23,6 +23,7 @@
       >
         <el-menu-item index="/">首页</el-menu-item>
         <el-menu-item index="/products">商品</el-menu-item>
+        <el-menu-item v-if="auth.isLoggedIn" index="/cart">购物车</el-menu-item>
         <el-menu-item v-if="auth.isLoggedIn" index="/delivery">校园跑腿</el-menu-item>
         <el-menu-item v-if="auth.isLoggedIn" index="/resume/build">简历创作</el-menu-item>
         <el-menu-item v-if="auth.isLoggedIn" index="/chat">
@@ -45,6 +46,7 @@
                 <el-dropdown-item @click="$router.push('/user')">个人中心</el-dropdown-item>
                 <el-dropdown-item @click="$router.push('/user/products')">我的发布</el-dropdown-item>
                 <el-dropdown-item @click="$router.push('/user/favorites')">我的收藏</el-dropdown-item>
+                <el-dropdown-item @click="$router.push('/cart')">购物车</el-dropdown-item>
                 <el-dropdown-item @click="$router.push('/user/orders')">我的订单</el-dropdown-item>
                 <el-dropdown-item @click="$router.push('/user/settings')">账号设置</el-dropdown-item>
                 <el-dropdown-item @click="$router.push('/delivery')">校园跑腿</el-dropdown-item>
@@ -68,6 +70,7 @@
       <el-menu router :default-active="$route.path" role="navigation" aria-label="移动端主导航" @select="drawerVisible = false">
         <el-menu-item index="/">首页</el-menu-item>
         <el-menu-item index="/products">商品</el-menu-item>
+        <el-menu-item v-if="auth.isLoggedIn" index="/cart">购物车</el-menu-item>
         <el-menu-item v-if="auth.isLoggedIn" index="/delivery">校园跑腿</el-menu-item>
         <el-menu-item v-if="auth.isLoggedIn" index="/resume/build">简历创作</el-menu-item>
         <el-menu-item v-if="auth.isLoggedIn" index="/chat">消息</el-menu-item>

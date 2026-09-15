@@ -68,6 +68,12 @@
       }
     },
     {
+      "path": "pages/cart/index",
+      "style": {
+        "navigationBarTitleText": "购物车"
+      }
+    },
+    {
       "path": "pages/products/publish",
       "style": {
         "navigationBarTitleText": "发布闲置"

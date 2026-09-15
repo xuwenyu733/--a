@@ -41,6 +41,10 @@
           <image class="quick-icon-img" :src="mineIcon('orders')" mode="aspectFit" />
           <text class="quick-label">订单</text>
         </view>
+        <view class="quick-item" @tap="goCart">
+          <image class="quick-icon-img" :src="mineIcon('favorites')" mode="aspectFit" />
+          <text class="quick-label">购物车</text>
+        </view>
         <view class="quick-item" @tap="goFavorites">
           <image class="quick-icon-img" :src="mineIcon('favorites')" mode="aspectFit" />
           <text class="quick-label">收藏</text>
@@ -99,6 +103,11 @@
         <view class="menu-item" @tap="goOrders">
           <image class="menu-icon-img" :src="menuIcon('orders')" mode="aspectFit" />
           <text class="menu-label">我的订单</text>
+          <text class="menu-arrow">›</text>
+        </view>
+        <view class="menu-item" @tap="goCart">
+          <image class="menu-icon-img" :src="menuIcon('favorites')" mode="aspectFit" />
+          <text class="menu-label">购物车</text>
           <text class="menu-arrow">›</text>
         </view>
         <view class="menu-item" @tap="goAddress">
@@ -380,6 +389,7 @@ function goFriendSearch() { if (ensureLogin()) uni.navigateTo({ url: '/pages/use
 function goPublish() { if (ensureLogin()) uni.navigateTo({ url: '/pages/products/publish' }) }
 function goMyProducts() { if (ensureLogin()) uni.navigateTo({ url: '/pages/user/my-products' }) }
 function goOrders() { if (ensureLogin()) uni.navigateTo({ url: '/pages/orders/index' }) }
+function goCart() { if (ensureLogin()) uni.navigateTo({ url: '/pages/cart/index' }) }
 function goFavorites() { if (ensureLogin()) uni.navigateTo({ url: '/pages/favorites/index' }) }
 function goAddress() { if (ensureLogin()) uni.navigateTo({ url: '/pages/user/address' }) }
 function goNotifications() { if (ensureLogin()) uni.navigateTo({ url: '/pages/notifications/index' }) }

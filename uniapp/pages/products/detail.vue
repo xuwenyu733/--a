@@ -48,7 +48,9 @@
     <view class="footer-bar">
       <button class="fav-btn share-btn" open-type="share" size="mini">分享</button>
       <button class="fav-btn" size="mini" @tap="toggleFavorite">{{ favorited ? '已收藏' : '收藏' }}</button>
-      <button v-if="canBuy" class="buy-btn" type="primary" @tap="buyNow">立即购买</button>
+      <button class="cart-entry" size="mini" @tap="goCart">购物车</button>
+      <button v-if="canBuy" class="cart-btn" @tap="addCart">加入购物车</button>
+      <button v-if="canBuy" class="buy-btn" type="primary" @tap="buyNow">立即下单</button>
       <button v-else-if="!loggedIn && product.status === 'on_sale' && !isOwner" class="buy-btn" type="primary" @tap="goLogin">登录购买</button>
       <button v-else class="buy-btn" type="primary" disabled>{{ buyDisabledLabel }}</button>
     </view>
@@ -89,6 +91,7 @@ import {
   contactSeller as contactSellerApi,
 } from '@/api/product'
 import { create as createOrder } from '@/api/order'
+import { addToCart } from '@/api/cart'
 import { getUser, ensureLogin, isLoggedIn, saveSession, getAccessToken, getRefreshToken } from '@/utils/auth'
 import { getMe } from '@/api/auth'
 import { getFileUrl } from '@/utils/fileUrl'
@@ -252,16 +255,33 @@ function goVerify() {
   uni.navigateTo({ url: '/pages/user/verify-student' })
 }
 
+function goCart() {
+  if (!ensureLogin()) return
+  uni.navigateTo({ url: '/pages/cart/index' })
+}
+
+async function addCart() {
+  if (!ensureLogin()) return
+  const p = product.value
+  try {
+    await addToCart({ productId: p._id, quantity: 1 })
+    uni.showToast({ title: '已加入购物车', icon: 'success' })
+  } catch (e) {
+    uni.showToast({ title: e.message || '加购失败', icon: 'none' })
+    loadDetail()
+  }
+}
+
 async function buyNow() {
   if (!ensureLogin()) return
   const p = product.value
   uni.showModal({
     title: '确认下单',
-    content: `以 ¥${p.price} 下单？`,
+    content: `以 ¥${p.price} 立即下单？`,
     success: async (res) => {
       if (!res.confirm) return
       try {
-        await createOrder({ productId: p._id })
+        await createOrder({ productId: p._id, quantity: 1 })
         uni.showToast({ title: '下单成功', icon: 'success' })
         setTimeout(() => uni.navigateTo({ url: '/pages/orders/index' }), 500)
       } catch (e) {
@@ -288,6 +308,15 @@ async function buyNow() {
 .seller-actions { display: flex; gap: 12rpx; }
 .shop-name { display: block; margin-top: 8rpx; }
 .tip-card { background: #fdf6ec; color: #e6a23c; font-size: 26rpx; line-height: 1.5; display: flex; flex-direction: column; gap: 16rpx; }
-.fav-btn { min-width: 140rpx; }
-.buy-btn { flex: 1; }
+.fav-btn { min-width: 110rpx; }
+.cart-entry { min-width: 110rpx; }
+.cart-btn {
+  flex: 1;
+  margin: 0 8rpx;
+  background: #fff7e6;
+  color: #e6a23c;
+  border: 1rpx solid #f5dab1;
+  font-size: 26rpx;
+}
+.buy-btn { flex: 1.2; margin: 0; }
 </style>

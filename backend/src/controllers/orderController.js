@@ -3,9 +3,9 @@ import { ErrorCodes, fail, httpStatusFromBizCode, success } from '../utils/respo
 
 export async function create(req, res, next) {
   try {
-    const { productId, remark } = req.body
+    const { productId, remark, quantity } = req.body
     if (!productId) return fail(res, ErrorCodes.BAD_REQUEST, '请指定商品')
-    const order = await orderService.createOrder(req.user, { productId, remark })
+    const order = await orderService.createOrder(req.user, { productId, remark, quantity })
     return success(res, order, '下单成功，等待卖家确认')
   } catch (err) {
     if (err.code) return fail(res, err.code, err.message, httpStatusFromBizCode(err.code))

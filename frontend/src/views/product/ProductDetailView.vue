@@ -41,12 +41,18 @@
             <el-button v-if="auth.isLoggedIn" :type="favorited ? 'warning' : 'default'" @click="handleFavorite">
               {{ favorited ? '已收藏' : '收藏' }}
             </el-button>
-            <el-button
-              v-if="canBuy"
-              type="danger"
-              :loading="ordering"
-              @click="openOrderDialog"
-            >我想要</el-button>
+            <template v-if="canBuy">
+              <el-input-number
+                v-model="buyQty"
+                :min="1"
+                :max="maxBuyQty"
+                size="default"
+                class="qty-input"
+              />
+              <el-button type="danger" :loading="ordering" @click="openOrderDialog">立即下单</el-button>
+              <el-button type="primary" plain :loading="addingCart" @click="handleAddCart">加入购物车</el-button>
+              <el-button link type="primary" @click="$router.push('/cart')">购物车</el-button>
+            </template>
             <el-button
               v-else-if="needVerify"
               type="danger"
@@ -77,7 +83,8 @@
 
           <el-dialog v-model="orderDialogVisible" title="确认购买" width="400px">
             <p>商品：<strong>{{ product.title }}</strong></p>
-            <p>价格：<strong class="price">¥{{ product.price }}</strong></p>
+            <p>数量：<strong>{{ buyQty }}</strong></p>
+            <p>合计：<strong class="price">¥{{ (Number(product.price) * buyQty).toFixed(2) }}</strong></p>
             <el-input v-model="orderRemark" type="textarea" placeholder="备注（可选，如面交时间地点）" :rows="3" style="margin-top:12px" />
             <template #footer>
               <el-button @click="orderDialogVisible = false">取消</el-button>
@@ -133,6 +140,7 @@ import { ElMessage } from 'element-plus'
 import * as productApi from '@/api/product'
 import * as chatApi from '@/api/chat'
 import * as orderApi from '@/api/order'
+import * as cartApi from '@/api/cart'
 import { useAuthStore } from '@/stores/auth'
 import { ROLES } from '@/constants/roles'
 import { CATEGORIES, CONDITIONS } from '@/constants/product'
@@ -151,8 +159,10 @@ const loading = ref(false)
 const error = ref('')
 const contacting = ref(false)
 const ordering = ref(false)
+const addingCart = ref(false)
 const orderDialogVisible = ref(false)
 const orderRemark = ref('')
+const buyQty = ref(1)
 const product = ref(null)
 const shop = ref(null)
 const favorited = ref(false)
@@ -197,6 +207,7 @@ const needVerify = computed(() => {
 
 const conditionLabel = computed(() => CONDITIONS.find((c) => c.value === product.value?.condition)?.label)
 const categoryLabel = computed(() => CATEGORIES.find((c) => c.value === product.value?.category)?.label)
+const maxBuyQty = computed(() => Math.max(1, Math.min(99, Number(product.value?.stock) || 1)))
 
 async function load() {
   loading.value = true
@@ -206,6 +217,7 @@ async function load() {
     product.value = data.product
     shop.value = data.shop
     favorited.value = data.favorited
+    buyQty.value = 1
     const regionId = data.product.regionId?._id || data.product.regionId
     if (regionId) {
       const rec = await productApi.getRecommendedProducts({
@@ -231,6 +243,7 @@ async function handleFavorite() {
 }
 
 function openOrderDialog() {
+  if (buyQty.value > maxBuyQty.value) buyQty.value = maxBuyQty.value
   orderRemark.value = ''
   orderDialogVisible.value = true
 }
@@ -241,15 +254,30 @@ async function handleOrder() {
     await orderApi.createOrder({
       productId: route.params.id,
       remark: orderRemark.value,
+      quantity: buyQty.value,
     })
     ElMessage.success('下单成功，等待卖家确认')
     orderDialogVisible.value = false
     router.push('/user/orders')
   } catch {
-    // 全局 request 拦截器已提示业务错误
     load()
   } finally {
     ordering.value = false
+  }
+}
+
+async function handleAddCart() {
+  addingCart.value = true
+  try {
+    await cartApi.addToCart({
+      productId: route.params.id,
+      quantity: buyQty.value,
+    })
+    ElMessage.success('已加入购物车')
+  } catch {
+    load()
+  } finally {
+    addingCart.value = false
   }
 }
 
@@ -282,7 +310,8 @@ onMounted(load)
 .no-img { height: 360px; background: var(--app-border); display: flex; align-items: center; justify-content: center; color: var(--app-muted); }
 .price-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .price { color: #f56c6c; font-size: 28px; font-weight: 700; margin: 0; }
-.actions { margin: 20px 0; display: flex; gap: 12px; flex-wrap: wrap; }
+.actions { margin: 20px 0; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.qty-input { width: 130px; }
 .seller { display: flex; gap: 12px; align-items: center; }
 .desc { white-space: pre-wrap; line-height: 1.6; }
 </style>

@@ -43,6 +43,7 @@
         <el-button @click="pwdVisible = true">修改密码</el-button>
         <el-button type="primary" @click="$router.push('/user/products')">我的发布</el-button>
         <el-button @click="$router.push('/user/favorites')">我的收藏</el-button>
+        <el-button @click="$router.push('/cart')">购物车</el-button>
         <el-button @click="$router.push('/user/orders')">二手订单</el-button>
         <el-button type="warning" plain @click="$router.push('/delivery')">校园跑腿</el-button>
         <el-button @click="$router.push('/delivery/orders')">跑腿订单</el-button>
