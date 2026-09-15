@@ -11,15 +11,6 @@ import { paginationMeta } from '../utils/pagination.js'
 export async function createOrder(buyer, { productId, remark }) {
   const qty = 1
   const product = await Product.findOne(activeProductFilter({ _id: productId }))
-  const existing = product
-    ? await Order.findOne(
-        activeOrderFilter({
-          productId,
-          buyerId: buyer._id,
-          status: { $in: [ORDER_STATUS.PENDING, ORDER_STATUS.CONFIRMED] },
-        })
-      )
-    : null
 
   const check = validateCreateOrder({
     buyer,
@@ -30,7 +21,6 @@ export async function createOrder(buyer, { productId, remark }) {
           stock: product.stock,
         }
       : null,
-    hasActiveOrder: Boolean(existing),
     quantity: qty,
   })
   if (!check.ok) {

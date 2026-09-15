@@ -245,8 +245,8 @@ async function handleOrder() {
     ElMessage.success('下单成功，等待卖家确认')
     orderDialogVisible.value = false
     router.push('/user/orders')
-  } catch (e) {
-    ElMessage.error(e.message || '下单失败')
+  } catch {
+    // 全局 request 拦截器已提示业务错误
     load()
   } finally {
     ordering.value = false

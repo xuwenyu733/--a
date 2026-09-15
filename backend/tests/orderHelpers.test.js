@@ -18,7 +18,6 @@ describe('orderHelpers', () => {
     const r = validateCreateOrder({
       buyer: { role: ROLES.STUDENT, studentVerified: false, _id: 'b1' },
       product: { status: PRODUCT_STATUS.ON_SALE, sellerId: 's1', stock: 5 },
-      hasActiveOrder: false,
       quantity: 1,
     })
     expect(r.ok).toBe(false)
@@ -29,7 +28,6 @@ describe('orderHelpers', () => {
     const r = validateCreateOrder({
       buyer: { role: ROLES.STUDENT, studentVerified: true, _id: 'b1' },
       product: { status: PRODUCT_STATUS.ON_SALE, sellerId: 's1', stock: 0 },
-      hasActiveOrder: false,
       quantity: 1,
     })
     expect(r.ok).toBe(false)
@@ -40,7 +38,6 @@ describe('orderHelpers', () => {
     const r = validateCreateOrder({
       buyer: { role: ROLES.STUDENT, studentVerified: true, _id: 'b1' },
       product: { status: PRODUCT_STATUS.ON_SALE, sellerId: 's1', stock: 3 },
-      hasActiveOrder: false,
       quantity: 1,
     })
     expect(r.ok).toBe(true)

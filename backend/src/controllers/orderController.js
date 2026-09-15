@@ -1,5 +1,5 @@
 import * as orderService from '../services/orderService.js'
-import { ErrorCodes, fail, success } from '../utils/response.js'
+import { ErrorCodes, fail, httpStatusFromBizCode, success } from '../utils/response.js'
 
 export async function create(req, res, next) {
   try {
@@ -8,7 +8,7 @@ export async function create(req, res, next) {
     const order = await orderService.createOrder(req.user, { productId, remark })
     return success(res, order, '下单成功，等待卖家确认')
   } catch (err) {
-    if (err.code) return fail(res, err.code, err.message, err.code === 40400 ? 404 : err.code >= 40300 ? 403 : 400)
+    if (err.code) return fail(res, err.code, err.message, httpStatusFromBizCode(err.code))
     next(err)
   }
 }

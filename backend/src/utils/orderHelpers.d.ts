@@ -14,7 +14,6 @@ export function validateOrderStatusUpdate(params: {
 export function validateCreateOrder(params: {
   buyer: { role: string; studentVerified?: boolean; _id: string }
   product: { status: string; sellerId: string; stock?: number } | null
-  hasActiveOrder: boolean
   quantity?: number
 }): { ok: true } | { ok: false; message: string; code: number }
 
