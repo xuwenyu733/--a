@@ -19,6 +19,7 @@ import deliveryRoutes from './delivery.js'
 import reviewRoutes from './reviews.js'
 import addressRoutes from './addresses.js'
 import refundRoutes from './refunds.js'
+import cartRoutes from './cart.js'
 
 const router = Router()
 
@@ -32,6 +33,7 @@ router.use('/products', productRoutes)
 router.use('/chat', chatRoutes)
 router.use('/notifications', notificationRoutes)
 router.use('/orders', orderRoutes)
+router.use('/cart', cartRoutes)
 router.use('/payments', paymentRoutes)
 router.use('/agent', agentRoutes)
 router.use('/admin', adminRoutes)

@@ -8,8 +8,8 @@ import { activeOrderFilter } from '../utils/orderQuery.js'
 import { notifyUser } from './notificationService.js'
 import { paginationMeta } from '../utils/pagination.js'
 
-export async function createOrder(buyer, { productId, remark }) {
-  const qty = 1
+export async function createOrder(buyer, { productId, remark, quantity = 1 }) {
+  const qty = Math.max(1, Number(quantity) || 1)
   const product = await Product.findOne(activeProductFilter({ _id: productId }))
 
   const check = validateCreateOrder({
@@ -65,7 +65,7 @@ export async function createOrder(buyer, { productId, remark }) {
     sellerId: product.sellerId,
     sellerType: product.sellerType,
     quantity: qty,
-    price: product.price,
+    price: product.price * qty,
     remark: remark || '',
     status: ORDER_STATUS.CONFIRMED,
   })

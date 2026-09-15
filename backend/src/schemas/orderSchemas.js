@@ -3,6 +3,7 @@ import { z } from 'zod'
 export const createOrderSchema = z.object({
   productId: z.string({ required_error: '请指定商品' }).min(1, '请指定商品'),
   remark: z.string().max(200, '备注最多 200 字').optional().default(''),
+  quantity: z.coerce.number().int().min(1).max(99).optional().default(1),
 })
 
 export const updateOrderStatusSchema = z.object({
