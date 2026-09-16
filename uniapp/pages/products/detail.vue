@@ -45,6 +45,15 @@
       <button size="mini" type="primary" @tap="goVerify">去学生认证</button>
     </view>
 
+    <view v-if="canBuy" class="card qty-card">
+      <text class="qty-label">购买数量</text>
+      <view class="qty-stepper">
+        <view class="qty-btn" @tap="changeQty(-1)">−</view>
+        <text class="qty-num">{{ buyQty }}</text>
+        <view class="qty-btn" @tap="changeQty(1)">+</view>
+      </view>
+    </view>
+
     <view class="footer-bar detail-footer">
       <view class="footer-side">
         <CartEntryBtn ref="cartBtnRef" variant="footer" label="购物车" />
@@ -124,9 +133,21 @@ const loadError = ref('')
 const loggedIn = ref(false)
 const userSnapshot = ref(null)
 const cartBtnRef = ref(null)
+const buyQty = ref(1)
 let productId = ''
 let lastRefreshTime = 0
 let firstShow = true
+
+const maxBuyQty = computed(() => {
+  const stock = Number(product.value?.stock)
+  if (Number.isFinite(stock) && stock > 0) return Math.min(99, stock)
+  return 99
+})
+
+function changeQty(delta) {
+  const next = buyQty.value + delta
+  buyQty.value = Math.min(maxBuyQty.value, Math.max(1, next))
+}
 
 const user = computed(() => userSnapshot.value ?? getUser())
 const isOwner = computed(() => {
@@ -224,6 +245,7 @@ async function loadDetail() {
     product.value = p
     shop.value = res.shop || null
     favorited.value = !!res.favorited
+    buyQty.value = 1
     images.value = (p.images || []).map(getFileUrl)
     shareProduct = p
     shareImages = images.value
@@ -278,7 +300,7 @@ async function addCart() {
   if (!ensureLogin()) return
   const p = product.value
   try {
-    await addToCart({ productId: p._id, quantity: 1 })
+    await addToCart({ productId: p._id, quantity: buyQty.value })
     uni.showToast({ title: '已加入购物车', icon: 'success' })
     cartBtnRef.value?.refresh?.()
   } catch (e) {
@@ -290,13 +312,14 @@ async function addCart() {
 async function buyNow() {
   if (!ensureLogin()) return
   const p = product.value
+  const total = (Number(p.price) * buyQty.value).toFixed(2)
   uni.showModal({
     title: '确认下单',
-    content: `以 ¥${p.price} 立即下单？`,
+    content: `数量 ${buyQty.value}，合计 ¥${total}，确认立即下单？`,
     success: async (res) => {
       if (!res.confirm) return
       try {
-        await createOrder({ productId: p._id, quantity: 1 })
+        await createOrder({ productId: p._id, quantity: buyQty.value })
         uni.showToast({ title: '下单成功', icon: 'success' })
         setTimeout(() => uni.navigateTo({ url: '/pages/orders/index' }), 500)
       } catch (e) {
@@ -323,6 +346,32 @@ async function buyNow() {
 .seller-actions { display: flex; gap: 12rpx; }
 .shop-name { display: block; margin-top: 8rpx; }
 .tip-card { background: #fdf6ec; color: #e6a23c; font-size: 26rpx; line-height: 1.5; display: flex; flex-direction: column; gap: 16rpx; }
+.qty-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24rpx;
+}
+.qty-label { font-size: 28rpx; color: #303133; }
+.qty-stepper { display: flex; align-items: center; gap: 8rpx; }
+.qty-btn {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 12rpx;
+  background: #f2f3f5;
+  color: #303133;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32rpx;
+  font-weight: 600;
+}
+.qty-num {
+  min-width: 64rpx;
+  text-align: center;
+  font-size: 30rpx;
+  font-weight: 600;
+}
 
 .detail-footer {
   gap: 12rpx;

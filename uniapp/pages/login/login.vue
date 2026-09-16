@@ -2,6 +2,16 @@
   <view class="container login-page">
     <text class="logo">🎓 校园市集</text>
 
+    <view class="agree-row" @tap="agreed = !agreed">
+      <view class="agree-box" :class="{ on: agreed }" />
+      <text class="agree-text">
+        我已阅读并同意
+        <text class="agree-link" @tap.stop="openTerms">《用户协议》</text>
+        与
+        <text class="agree-link" @tap.stop="openPrivacy">《隐私政策》</text>
+      </text>
+    </view>
+
     <button class="wx-btn" :loading="wxLoading" @tap="wechatLogin">
       微信一键登录
     </button>
@@ -57,6 +67,21 @@ const showPassword = ref(false)
 const loading = ref(false)
 const wxLoading = ref(false)
 const errorTip = ref('')
+const agreed = ref(false)
+
+function openTerms() {
+  uni.navigateTo({ url: '/pages/legal/doc?kind=terms' })
+}
+
+function openPrivacy() {
+  uni.navigateTo({ url: '/pages/legal/doc?kind=privacy' })
+}
+
+function ensureAgreed() {
+  if (agreed.value) return true
+  showError('请先阅读并同意用户协议与隐私政策')
+  return false
+}
 
 function onPhoneInput(e) {
   phone.value = e.detail.value
@@ -85,6 +110,7 @@ function showError(msg) {
 
 async function wechatLogin() {
   errorTip.value = ''
+  if (!ensureAgreed()) return
   wxLoading.value = true
   try {
     const code = await getWxLoginCode()
@@ -124,6 +150,7 @@ async function submit() {
     showError('请输入密码')
     return
   }
+  if (!ensureAgreed()) return
   loading.value = true
   errorTip.value = ''
   try {
@@ -151,7 +178,7 @@ function goRegister() {
 
 <style lang="scss" scoped>
 .login-page { padding-top: calc(60rpx + env(safe-area-inset-top)); padding-bottom: env(safe-area-inset-bottom); }
-.logo { display: block; text-align: center; font-size: 48rpx; font-weight: 700; margin-bottom: 40rpx; }
+.logo { display: block; text-align: center; font-size: 48rpx; font-weight: 700; margin-bottom: 32rpx; }
 .wx-btn {
   background: #07c160; color: #fff; border-radius: 12rpx; margin-bottom: 32rpx;
 }
@@ -201,6 +228,40 @@ function goRegister() {
   font-size: 26rpx;
   line-height: 1.4;
 }
+.agree-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+  margin: 0 8rpx 28rpx;
+}
+.agree-box {
+  width: 32rpx;
+  height: 32rpx;
+  margin-top: 4rpx;
+  border: 2rpx solid #c0c4cc;
+  border-radius: 6rpx;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+.agree-box.on {
+  border-color: #409eff;
+  background: #409eff;
+  position: relative;
+}
+.agree-box.on::after {
+  content: '';
+  position: absolute;
+  left: 8rpx;
+  top: 2rpx;
+  width: 10rpx;
+  height: 18rpx;
+  border: 2rpx solid #fff;
+  border-top: 0;
+  border-left: 0;
+  transform: rotate(45deg);
+}
+.agree-text { flex: 1; font-size: 24rpx; color: #606266; line-height: 1.5; }
+.agree-link { color: #409eff; }
 .btn-primary { background: #409eff; color: #fff; }
 .btn-block { width: 100%; }
 .links { display: flex; justify-content: space-between; margin-top: 24rpx; font-size: 24rpx; color: #409eff; }

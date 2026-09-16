@@ -82,6 +82,13 @@
     <el-main class="main-content" role="main">
       <router-view :key="$route.path" />
     </el-main>
+
+    <el-footer class="site-footer" height="auto">
+      <router-link to="/terms">用户协议</router-link>
+      <span class="sep">·</span>
+      <router-link to="/privacy">隐私政策</router-link>
+      <span class="muted">校园市集</span>
+    </el-footer>
   </el-container>
 </template>
 
@@ -177,7 +184,21 @@ async function handleLogout() {
 .desktop-menu { flex: 1; border: none; min-width: 0; }
 .header-right { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-shrink: 0; }
 .user-entry { display: flex; align-items: center; gap: 8px; cursor: pointer; }
-.main-content { padding: 12px 16px; }
+.main-content { padding: 12px 16px; flex: 1; }
+.site-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 12px 24px;
+  font-size: 13px;
+  border-top: 1px solid #eee;
+  background: transparent;
+}
+.site-footer a { color: #409eff; text-decoration: none; }
+.site-footer a:hover { text-decoration: underline; }
+.site-footer .sep { color: #c0c4cc; }
+.site-footer .muted { color: #909399; margin-left: 8px; }
 @media (max-width: 768px) {
   .menu-btn { display: inline-flex; }
   .desktop-menu { display: none; }

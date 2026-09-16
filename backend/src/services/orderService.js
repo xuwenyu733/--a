@@ -8,9 +8,30 @@ import { activeOrderFilter } from '../utils/orderQuery.js'
 import { notifyUser } from './notificationService.js'
 import { paginationMeta } from '../utils/pagination.js'
 
+/** 旧数据可能无 stock 字段；mongoose 读出会带 default，但条件更新匹配不到 */
+async function ensureProductStockField(product) {
+  if (!product?._id) return product
+  const raw = await Product.collection.findOne(
+    { _id: product._id },
+    { projection: { stock: 1, sellerType: 1 } }
+  )
+  if (raw && raw.stock != null) {
+    product.stock = Number(raw.stock)
+    return product
+  }
+  const fill = product.sellerType === 'merchant' ? 100 : 1
+  await Product.updateOne(
+    { _id: product._id, $or: [{ stock: { $exists: false } }, { stock: null }] },
+    { $set: { stock: fill } }
+  )
+  product.stock = fill
+  return product
+}
+
 export async function createOrder(buyer, { productId, remark, quantity = 1 }) {
   const qty = Math.max(1, Number(quantity) || 1)
-  const product = await Product.findOne(activeProductFilter({ _id: productId }))
+  let product = await Product.findOne(activeProductFilter({ _id: productId }))
+  if (product) product = await ensureProductStockField(product)
 
   const check = validateCreateOrder({
     buyer,
