@@ -127,6 +127,17 @@ html.dark .service-card--delivery { background: linear-gradient(160deg, #3a2a1a,
 html.dark .hero { background: linear-gradient(135deg, #1a2a3a, #1a2f24); }
 html.dark .skeleton-card { border-color: var(--app-border); }
 
+/* 命令式 MessageBox 样式兜底：居中、圆角 */
+.el-overlay-message-box {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+}
+.el-message-box {
+  border-radius: 12px;
+  max-width: 420px;
+}
+
 @media (max-width: 768px) {
   .el-table { font-size: 13px; }
   .el-dialog { width: 92% !important; max-width: 420px; }

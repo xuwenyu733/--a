@@ -122,6 +122,25 @@
       </template>
     </el-dialog>
 
+    <el-dialog
+      v-model="confirmVisible"
+      :title="confirmTitle"
+      width="400px"
+      align-center
+      destroy-on-close
+      class="order-confirm-dialog"
+    >
+      <p class="confirm-body">{{ confirmMessage }}</p>
+      <template #footer>
+        <el-button @click="confirmVisible = false">再想想</el-button>
+        <el-button
+          :type="confirmButtonType"
+          :loading="confirmLoading"
+          @click="runConfirmAction"
+        >{{ confirmButtonText }}</el-button>
+      </template>
+    </el-dialog>
+
     <OrderPaymentDialog
       v-model="payDialogVisible"
       :order="payOrder"
@@ -136,7 +155,7 @@ import { ref, onMounted } from 'vue'
 import { RecycleScroller } from 'vue-virtual-scroller'
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import * as orderApi from '@/api/order'
 import * as chatApi from '@/api/chat'
 import * as reviewApi from '@/api/review'
@@ -166,6 +185,36 @@ const rateTexts = ['很差', '较差', '一般', '满意', '非常满意']
 
 const payDialogVisible = ref(false)
 const payOrder = ref(null)
+
+const confirmVisible = ref(false)
+const confirmLoading = ref(false)
+const confirmTitle = ref('提示')
+const confirmMessage = ref('')
+const confirmButtonText = ref('确定')
+const confirmButtonType = ref('primary')
+const confirmAction = ref(null)
+
+function openConfirm({ title, message, buttonText = '确定', buttonType = 'primary', action }) {
+  confirmTitle.value = title
+  confirmMessage.value = message
+  confirmButtonText.value = buttonText
+  confirmButtonType.value = buttonType
+  confirmAction.value = action
+  confirmVisible.value = true
+}
+
+async function runConfirmAction() {
+  if (!confirmAction.value || confirmLoading.value) return
+  confirmLoading.value = true
+  try {
+    await confirmAction.value()
+    confirmVisible.value = false
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error(e.message || '操作失败')
+  } finally {
+    confirmLoading.value = false
+  }
+}
 
 function formatTime(t) {
   return new Date(t).toLocaleString('zh-CN')
@@ -218,12 +267,17 @@ async function goChat(order) {
 }
 
 async function hideOrderRecord(order) {
-  await ElMessageBox.confirm('从列表中移除该订单？不影响对方记录，管理员可恢复。', '删除记录', {
-    type: 'warning',
+  openConfirm({
+    title: '删除记录',
+    message: '从列表中移除该订单？不影响对方记录，管理员可恢复。',
+    buttonText: '删除',
+    buttonType: 'danger',
+    action: async () => {
+      await orderApi.hideOrder(order._id)
+      ElMessage.success('已移除')
+      load()
+    },
   })
-  await orderApi.hideOrder(order._id)
-  ElMessage.success('已移除')
-  load()
 }
 
 function openPayDialog(order) {
@@ -259,13 +313,39 @@ async function confirmPayment(order) {
   }
 }
 
-async function setStatus(order, status) {
+function setStatus(order, status) {
   if (status === 'cancelled') {
-    await ElMessageBox.confirm('确定取消该订单？', '提示', { type: 'warning' })
+    openConfirm({
+      title: '取消订单',
+      message: `确定取消「${order.productId?.title || '该订单'}」？取消后不可恢复。`,
+      buttonText: '确认取消',
+      buttonType: 'danger',
+      action: async () => {
+        await orderApi.updateOrderStatus(order._id, { status })
+        ElMessage.success('订单已取消')
+        load()
+      },
+    })
+    return
   }
-  await orderApi.updateOrderStatus(order._id, { status })
-  ElMessage.success('操作成功')
-  load()
+  if (status === 'completed') {
+    openConfirm({
+      title: '确认完成',
+      message: `确认「${order.productId?.title || '该订单'}」已完成交易？`,
+      buttonText: '确认完成',
+      buttonType: 'success',
+      action: async () => {
+        await orderApi.updateOrderStatus(order._id, { status })
+        ElMessage.success('操作成功')
+        load()
+      },
+    })
+    return
+  }
+  orderApi.updateOrderStatus(order._id, { status }).then(() => {
+    ElMessage.success('操作成功')
+    load()
+  }).catch((e) => ElMessage.error(e.message || '操作失败'))
 }
 
 function openReview(order) {
@@ -320,6 +400,12 @@ onMounted(load)
 .review-hint { color: var(--el-color-warning); }
 .order-actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .review-target { margin: 0 0 12px; color: var(--el-text-color-regular); }
+.confirm-body {
+  margin: 0;
+  line-height: 1.6;
+  color: var(--el-text-color-regular);
+  font-size: 15px;
+}
 .orders-wrap { min-height: 200px; }
 .order-scroller {
   max-height: calc(100vh - 280px);

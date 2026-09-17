@@ -2,7 +2,7 @@
   <view class="page-orders">
     <view class="header-bar">
       <view class="flow-hint muted">
-        <text>流程：下单 - 付款 - 卖家确认收款 - 确认完成 - 评价</text>
+        <text>流程：下单 - 付款 - 卖家确认收款 - 确认完成 - 评价；完成后 7 天内可申请退款</text>
       </view>
 
       <view class="tabs">
@@ -45,6 +45,7 @@
               <text class="price">¥{{ item.price }}</text>
               <text class="peer muted">{{ item.peerLabel }}：{{ item.peerName }}</text>
               <text v-if="item.paymentHint" class="pay-hint">{{ item.paymentHint }}</text>
+              <text v-if="item.refundHint" class="refund-hint">{{ item.refundHint }}</text>
             </view>
           </view>
           <view class="actions">
@@ -54,6 +55,9 @@
             <button v-if="role === 'buy' && item.status === 'confirmed' && item.paymentStatus !== 'paid_online' && item.paymentStatus !== 'seller_confirmed' && item.paymentStatus !== 'buyer_marked'" size="mini" @tap="markManualPaid(item._id)">我已付款</button>
             <button v-if="item.status === 'confirmed'" size="mini" type="primary" @tap="updateStatus(item._id, 'completed')">确认完成</button>
             <button v-if="item.status === 'confirmed' || item.status === 'pending'" size="mini" @tap="updateStatus(item._id, 'cancelled')">取消订单</button>
+            <button v-if="role === 'buy' && item.canApplyRefund" size="mini" type="warn" @tap="openRefundApply(item)">申请退款</button>
+            <button v-if="role === 'buy' && item.refund?.status === 'pending'" size="mini" @tap="cancelRefund(item)">撤销退款</button>
+            <button v-if="role === 'sell' && item.refund?.status === 'pending'" size="mini" type="primary" @tap="openRefundRespond(item)">处理退款</button>
             <button v-if="item.status === 'completed' || item.status === 'cancelled'" size="mini" @tap="removeRecord(item._id)">删除记录</button>
             <button v-if="item.status === 'completed' && item.reviewSummary?.canReview" size="mini" type="primary" @tap="goReview(item)">评价对方</button>
             <text v-if="item.status === 'completed' && item.reviewSummary?.myReview" class="tag success">已评价 {{ item.reviewSummary.myReview.rating }} 星</text>
@@ -91,7 +95,7 @@
             @tap="simulatePay"
           >模拟支付成功</button>
           <button
-            v-else-if="activePayment.payParams"
+            v-else-if="activePayment?.payParams"
             type="primary"
             :loading="paying"
             @tap="invokeWechatPay"
@@ -107,6 +111,37 @@
         <button @tap="closePay">关闭</button>
       </view>
     </view>
+
+    <view v-if="refundVisible" class="pay-mask" @tap="closeRefund">
+      <view class="pay-panel card" @tap.stop>
+        <text class="section-title">{{ refundMode === 'apply' ? '申请退款' : '处理退款' }} · ¥{{ refundOrder?.price }}</text>
+        <text class="muted manual-tip">{{ refundOrder?.productId?.title }}</text>
+        <template v-if="refundMode === 'apply'">
+          <text class="muted manual-tip">完成订单后 7 天内可申请。卖家同意后双方线下协商退款（在线自动退款将在正式支付接入后开通）。</text>
+          <textarea
+            v-model="refundReason"
+            class="refund-input"
+            maxlength="500"
+            placeholder="请填写退款原因（必填）"
+          />
+          <button type="warn" :loading="refundBusy" @tap="submitRefundApply">提交申请</button>
+        </template>
+        <template v-else>
+          <text class="manual-tip">买家原因：{{ refundOrder?.refund?.reason || '—' }}</text>
+          <textarea
+            v-model="refundReply"
+            class="refund-input"
+            maxlength="500"
+            placeholder="回复买家（选填）"
+          />
+          <view class="refund-actions">
+            <button type="primary" :loading="refundBusy" @tap="submitRefundRespond('approve')">同意退款</button>
+            <button :loading="refundBusy" @tap="submitRefundRespond('reject')">拒绝</button>
+          </view>
+        </template>
+        <button @tap="closeRefund">关闭</button>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -117,9 +152,10 @@ import { list as listOrders, updateStatus as updateOrderStatus, markPaid, confir
 import { createConversation } from '@/api/chat'
 import { getOrderReviewSummary } from '@/api/review'
 import * as paymentApi from '@/api/payment'
+import * as refundApi from '@/api/refund'
 import { ensureLogin } from '@/utils/auth'
 import { getFileUrl } from '@/utils/fileUrl'
-import { ORDER_STATUS, PAYMENT_STATUS, formatTime } from '@/utils/format'
+import { ORDER_STATUS, PAYMENT_STATUS, REFUND_STATUS, canApplyRefund, formatTime } from '@/utils/format'
 import { requestWechatPayment } from '@/utils/pay'
 import LoadState from '@/components/LoadState.vue'
 import ListCardSkeleton from '@/components/ListCardSkeleton.vue'
@@ -143,6 +179,12 @@ const payConfig = ref({
   domainReady: false,
   tip: '',
 })
+const refundVisible = ref(false)
+const refundMode = ref('apply')
+const refundOrder = ref(null)
+const refundReason = ref('')
+const refundReply = ref('')
+const refundBusy = ref(false)
 
 const payTip = computed(() => payConfig.value.tip || '')
 const sellerQr = computed(() => {
@@ -180,19 +222,40 @@ async function loadOrders() {
     const res = await listOrders(params)
     const orders = res.list || []
     await loadReviewSummaries(orders)
-    list.value = orders.map((o) => ({
-      ...o,
-      cover: getFileUrl(o.productId?.images?.[0]),
-      createdAtText: formatTime(o.createdAt),
-      paymentHint: PAYMENT_STATUS[o.paymentStatus] || '',
-      peerLabel: role.value === 'buy' ? '卖家' : '买家',
-      peerName: role.value === 'buy' ? o.sellerId?.nickname : o.buyerId?.nickname,
-      statusClass: o.status === 'completed' ? 'success' : o.status === 'cancelled' ? 'info' : 'warning',
-    }))
+    const refundMap = await loadRefundMap()
+    list.value = orders.map((o) => {
+      const refund = refundMap[String(o._id)] || null
+      return {
+        ...o,
+        cover: getFileUrl(o.productId?.images?.[0]),
+        createdAtText: formatTime(o.createdAt),
+        paymentHint: PAYMENT_STATUS[o.paymentStatus] || '',
+        refund,
+        refundHint: refund ? REFUND_STATUS[refund.status] || '' : '',
+        canApplyRefund: role.value === 'buy' && canApplyRefund(o, refund),
+        peerLabel: role.value === 'buy' ? '卖家' : '买家',
+        peerName: role.value === 'buy' ? o.sellerId?.nickname : o.buyerId?.nickname,
+        statusClass: o.status === 'completed' ? 'success' : o.status === 'cancelled' ? 'info' : 'warning',
+      }
+    })
   } catch (e) {
     loadError.value = e.message || '加载失败'
   } finally {
     loading.value = false
+  }
+}
+
+async function loadRefundMap() {
+  try {
+    const res = await refundApi.list({ role: role.value, pageSize: 50 })
+    const map = {}
+    for (const item of res.list || []) {
+      const oid = item.orderId?._id || item.orderId
+      if (oid) map[String(oid)] = item
+    }
+    return map
+  } catch {
+    return {}
   }
 }
 
@@ -408,6 +471,85 @@ function closePay() {
   activePayment.value = null
   paying.value = false
 }
+
+function openRefundApply(order) {
+  refundMode.value = 'apply'
+  refundOrder.value = order
+  refundReason.value = ''
+  refundReply.value = ''
+  refundVisible.value = true
+}
+
+function openRefundRespond(order) {
+  refundMode.value = 'respond'
+  refundOrder.value = order
+  refundReason.value = ''
+  refundReply.value = ''
+  refundVisible.value = true
+}
+
+function closeRefund() {
+  refundVisible.value = false
+  refundOrder.value = null
+  refundBusy.value = false
+}
+
+async function submitRefundApply() {
+  const reason = String(refundReason.value || '').trim()
+  if (!reason) {
+    uni.showToast({ title: '请填写退款原因', icon: 'none' })
+    return
+  }
+  if (refundBusy.value || !refundOrder.value) return
+  refundBusy.value = true
+  try {
+    await refundApi.create(refundOrder.value._id, { reason })
+    uni.showToast({ title: '已提交退款申请', icon: 'success' })
+    closeRefund()
+    loadOrders()
+  } catch (e) {
+    uni.showToast({ title: e.message || '提交失败', icon: 'none' })
+  } finally {
+    refundBusy.value = false
+  }
+}
+
+async function submitRefundRespond(action) {
+  if (refundBusy.value || !refundOrder.value) return
+  refundBusy.value = true
+  try {
+    await refundApi.respond(refundOrder.value._id, {
+      action,
+      reply: String(refundReply.value || '').trim(),
+    })
+    uni.showToast({
+      title: action === 'approve' ? '已同意退款' : '已拒绝',
+      icon: 'success',
+    })
+    closeRefund()
+    loadOrders()
+  } catch (e) {
+    uni.showToast({ title: e.message || '操作失败', icon: 'none' })
+  } finally {
+    refundBusy.value = false
+  }
+}
+
+async function cancelRefund(order) {
+  uni.showModal({
+    title: '撤销退款申请？',
+    success: async (res) => {
+      if (!res.confirm) return
+      try {
+        await refundApi.cancel(order._id)
+        uni.showToast({ title: '已撤销', icon: 'none' })
+        loadOrders()
+      } catch (e) {
+        uni.showToast({ title: e.message || '失败', icon: 'none' })
+      }
+    },
+  })
+}
 </script>
 
 <style lang="scss" scoped>
@@ -472,11 +614,28 @@ function closePay() {
 .tag.inline { display: inline-block; margin-top: 8rpx; }
 .peer { display: block; margin-top: 8rpx; }
 .pay-hint { display: block; margin-top: 8rpx; color: #e6a23c; font-size: 24rpx; }
+.refund-hint { display: block; margin-top: 8rpx; color: #f56c6c; font-size: 24rpx; }
 .actions { margin-top: 16rpx; display: flex; flex-wrap: wrap; gap: 12rpx; }
 .pay-tabs { display: flex; gap: 24rpx; margin: 20rpx 0; font-size: 28rpx; }
 .pay-tabs .active { color: #409eff; font-weight: 600; border-bottom: 4rpx solid #409eff; padding-bottom: 4rpx; }
 .channel { display: block; padding: 16rpx 0; }
 .manual-tip { display: block; margin: 16rpx 0 24rpx; line-height: 1.5; }
+.refund-input {
+  width: 100%;
+  min-height: 160rpx;
+  margin: 16rpx 0 24rpx;
+  padding: 16rpx;
+  box-sizing: border-box;
+  background: #f5f7fa;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+}
+.refund-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  margin-bottom: 16rpx;
+}
 .pay-tip {
   display: block;
   margin: 8rpx 0 16rpx;

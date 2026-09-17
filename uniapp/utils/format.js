@@ -19,6 +19,26 @@ export const PAYMENT_STATUS = {
   paid_online: '已在线支付',
 }
 
+export const REFUND_STATUS = {
+  pending: '退款处理中',
+  approved: '已同意退款',
+  rejected: '已拒绝退款',
+  cancelled: '已撤销申请',
+}
+
+const REFUND_ELIGIBLE_PAYMENT = new Set(['paid_online', 'seller_confirmed', 'buyer_marked'])
+const REFUND_WINDOW_DAYS = 7
+
+/** 买家是否可对已完成订单申请退款 */
+export function canApplyRefund(order, existingRefund) {
+  if (!order || order.status !== 'completed') return false
+  if (!REFUND_ELIGIBLE_PAYMENT.has(order.paymentStatus)) return false
+  if (existingRefund?.status === 'pending' || existingRefund?.status === 'approved') return false
+  if (!order.completedAt) return false
+  const windowMs = REFUND_WINDOW_DAYS * 24 * 60 * 60 * 1000
+  return Date.now() - new Date(order.completedAt).getTime() <= windowMs
+}
+
 export function formatPrice(price) {
   return `¥${price}`
 }
