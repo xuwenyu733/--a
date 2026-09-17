@@ -3,6 +3,8 @@ import mongoose from 'mongoose'
 const conversationSchema = new mongoose.Schema(
   {
     participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }],
+    /** 有序参与者对键 `${lowId}:${highId}`，防并发重复建会话 */
+    participantKey: { type: String, default: null },
     productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', default: null },
     lastMessage: {
       content: { type: String, default: '' },
@@ -15,7 +17,7 @@ const conversationSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
-conversationSchema.index({ participants: 1 })
-conversationSchema.index({ updatedAt: -1 })
+conversationSchema.index({ participantKey: 1 }, { unique: true, sparse: true })
+conversationSchema.index({ participants: 1, updatedAt: -1 })
 
 export default mongoose.model('Conversation', conversationSchema)

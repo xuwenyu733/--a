@@ -20,8 +20,14 @@ describe('chatHelpers', () => {
     expect(r.code).toBe(40000)
   })
 
-  it('validateMessageContent allows image without text', () => {
-    expect(validateMessageContent('', 'image').ok).toBe(true)
+  it('validateMessageContent allows platform image url', () => {
+    expect(validateMessageContent('/uploads/a.jpg', 'image').ok).toBe(true)
+  })
+
+  it('validateMessageContent rejects external image url', () => {
+    const r = validateMessageContent('https://evil.example/x.png', 'image')
+    expect(r.ok).toBe(false)
+    expect(r.code).toBe(40000)
   })
 
   it('buildLastMessagePreview for image', () => {

@@ -2,6 +2,9 @@ import User from '../models/User.js'
 import { ErrorCodes, fail } from '../utils/response.js'
 import { verifyAccessToken } from '../utils/jwt.js'
 
+const MUST_CHANGE_PASSWORD_ALLOW =
+  /\/auth\/(change-password|logout|me)(\?|$)/i
+
 export async function requireAuth(req, res, next) {
   try {
     const authHeader = req.headers.authorization
@@ -13,6 +16,9 @@ export async function requireAuth(req, res, next) {
     const user = await User.findById(decoded.userId)
     if (!user || user.status === 'banned') {
       return fail(res, ErrorCodes.UNAUTHORIZED, '用户不存在或已被封禁', 401)
+    }
+    if (user.mustChangePassword && !MUST_CHANGE_PASSWORD_ALLOW.test(req.originalUrl || '')) {
+      return fail(res, ErrorCodes.FORBIDDEN, '请先修改初始密码后再使用', 403)
     }
     req.user = user
     req.tokenPayload = decoded

@@ -4,7 +4,11 @@
       <header class="legal-header">
         <p class="brand">{{ LEGAL_META.brand }}</p>
         <h1>{{ doc.title }}</h1>
-        <p class="meta">更新日期：{{ LEGAL_META.updatedAt }}（草稿，正式上线前以公示版本为准）</p>
+        <p class="meta">
+          运营方：{{ LEGAL_META.operator }} · 信用代码 {{ LEGAL_META.creditCode }} · 经营者
+          {{ LEGAL_META.legalPerson }}
+        </p>
+        <p class="meta">更新日期：{{ LEGAL_META.updatedAt }}</p>
       </header>
       <section v-for="(s, i) in doc.sections" :key="i" class="legal-section">
         <h2>{{ s.heading }}</h2>

@@ -26,11 +26,12 @@ async function notify(userId, { type, title, content, relatedId }) {
   await Notification.create({ userId, type, title, content, relatedId })
 }
 
-function populateQuery(q) {
+function populateQuery(q, { includePhone = true } = {}) {
+  const userFields = includePhone ? 'nickname phone avatar' : 'nickname avatar'
   return q
     .populate('zoneId', 'name code')
-    .populate('posterId', 'nickname phone avatar')
-    .populate('courierId', 'nickname phone avatar')
+    .populate('posterId', userFields)
+    .populate('courierId', userFields)
 }
 
 function posterIdOf(order) {
@@ -186,18 +187,20 @@ export async function listOpenOrders(
   }
 
   const skip = (Number(page) - 1) * Number(pageSize)
-  const acceptableFilter = { ...filter, posterId: { $ne: user._id } }
-  const [rawList, total, acceptableTotal] = await Promise.all([
-    populateQuery(DeliveryOrder.find(filter).sort({ deliveryDeadlineEnd: 1, createdAt: -1 }).skip(skip).limit(Number(pageSize))),
-    DeliveryOrder.countDocuments(filter),
-    DeliveryOrder.countDocuments(acceptableFilter),
+  const hallFilter = { ...filter, posterId: { $ne: user._id } }
+  const [rawList, total] = await Promise.all([
+    populateQuery(
+      DeliveryOrder.find(hallFilter).sort({ deliveryDeadlineEnd: 1, createdAt: -1 }).skip(skip).limit(Number(pageSize)),
+      { includePhone: false }
+    ),
+    DeliveryOrder.countDocuments(hallFilter),
   ])
   const list = sortOrdersByDeadline(rawList.map((order) => enrichDeliveryOrder(order, user._id, now)), now)
   return {
     list,
     pagination: {
       ...paginationMeta(Number(page), Number(pageSize), total),
-      acceptableTotal,
+      acceptableTotal: total,
     },
   }
 }
@@ -229,8 +232,13 @@ export async function acceptOrder(courier, orderId) {
     err.code = 40900
     throw err
   }
-  const order = await DeliveryOrder.findByIdAndUpdate(
-    existing._id,
+  const order = await DeliveryOrder.findOneAndUpdate(
+    {
+      _id: existing._id,
+      status: DELIVERY_ORDER_STATUS.OPEN,
+      regionId: courier.regionId,
+      posterId: { $ne: courier._id },
+    },
     {
       $set: {
         status: DELIVERY_ORDER_STATUS.ACCEPTED,
@@ -240,6 +248,11 @@ export async function acceptOrder(courier, orderId) {
     },
     { new: true }
   )
+  if (!order) {
+    const err = new Error('订单不存在或已被接单')
+    err.code = 40900
+    throw err
+  }
   await notify(order.posterId, {
     type: 'delivery',
     title: '跑腿订单已被接单',

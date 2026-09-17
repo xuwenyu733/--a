@@ -1,7 +1,7 @@
 import fs from 'fs'
 import config from '../config/index.js'
 import { getFileUrl } from '../utils/fileUrl.js'
-import { defaultUploadDir } from '../middlewares/multerStorage.js'
+import { assertSafeUploadedFile } from '../middlewares/uploadSafety.js'
 import { tryGenerateThumbnail, absoluteThumbPath } from '../utils/imageThumb.js'
 
 let ossClientPromise = null
@@ -32,6 +32,7 @@ async function getOssClient() {
 export async function persistUploadedFiles(files) {
   const paths = []
   for (const file of files) {
+    await assertSafeUploadedFile(file)
     const dbPath = `/uploads/${file.filename}`
     const thumbDbPath = await tryGenerateThumbnail(file)
 

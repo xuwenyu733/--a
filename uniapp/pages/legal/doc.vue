@@ -3,7 +3,11 @@
     <view class="card">
       <text class="brand">{{ LEGAL_META.brand }}</text>
       <text class="title">{{ doc.title }}</text>
-      <text class="meta">更新日期：{{ LEGAL_META.updatedAt }}（草稿）</text>
+      <text class="meta"
+        >运营方：{{ LEGAL_META.operator }} · {{ LEGAL_META.creditCode }} · 经营者
+        {{ LEGAL_META.legalPerson }}</text
+      >
+      <text class="meta">更新日期：{{ LEGAL_META.updatedAt }}</text>
 
       <view v-for="(s, i) in doc.sections" :key="i" class="section">
         <text class="heading">{{ s.heading }}</text>

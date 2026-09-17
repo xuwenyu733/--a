@@ -9,6 +9,7 @@ import routes from './routes/index.js'
 import { notFoundHandler, errorHandler } from './middlewares/errorHandler.js'
 import { parseCookies } from './utils/authCookie.js'
 import { setPublicBaseUrl } from './utils/publicBaseUrl.js'
+import { globalApiLimiter } from './middlewares/globalRateLimit.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -63,13 +64,14 @@ export function createApp(opts = {}) {
         return res.status(403).json({ code: 40301, message: '请通过业务接口访问私有文件' })
       }
       res.setHeader('Cache-Control', 'public, max-age=86400')
+      res.setHeader('X-Content-Type-Options', 'nosniff')
       next()
     },
     express.static(path.join(__dirname, '../uploads'))
   )
 
-  app.use('/api/v1', routes)
-  app.use('/api', routes)
+  app.use('/api/v1', globalApiLimiter, routes)
+  app.use('/api', globalApiLimiter, routes)
 
   if (prodStatic) {
     const clientDist = path.join(__dirname, '../../frontend/dist')

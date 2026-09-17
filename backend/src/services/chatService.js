@@ -35,21 +35,39 @@ export async function getOrCreateConversation(userId, receiverId, productId = nu
   }
 
   const [p1, p2] = sortParticipantIds(userId, receiverId)
+  const participantKey = `${p1.toString()}:${p2.toString()}`
   let conversation = await Conversation.findOne({
-    participants: { $all: [p1, p2], $size: 2 },
+    $or: [
+      { participantKey },
+      { participants: { $all: [p1, p2], $size: 2 } },
+    ],
   })
 
   if (!conversation) {
     const counts = new Map()
     counts.set(p1.toString(), 0)
     counts.set(p2.toString(), 0)
-    conversation = await Conversation.create({
-      participants: [p1, p2],
-      productId: productId || null,
-      unreadCounts: counts,
-      lastMessage: { content: '', type: 'text' },
-    })
-  } else if (productId && !conversation.productId) {
+    try {
+      conversation = await Conversation.create({
+        participants: [p1, p2],
+        participantKey,
+        productId: productId || null,
+        unreadCounts: counts,
+        lastMessage: { content: '', type: 'text' },
+      })
+    } catch (err) {
+      if (err?.code === 11000) {
+        conversation = await Conversation.findOne({ participantKey })
+      } else {
+        throw err
+      }
+    }
+  } else if (!conversation.participantKey) {
+    conversation.participantKey = participantKey
+    await conversation.save().catch(() => {})
+  }
+
+  if (conversation && productId && !conversation.productId) {
     conversation.productId = productId
     await conversation.save()
   }

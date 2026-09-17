@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { marked } = require('marked');
+const sanitizeHtml = require('sanitize-html');
 const { loadResumePhotoBuffer, extractFirstImageSrc } = require('./resolveResumePhoto');
 const {
   transformResumeHtml,
@@ -17,6 +18,36 @@ const {
 } = require('./resumePhotoHtml');
 
 marked.setOptions({ gfm: true, breaks: true });
+
+const RESUME_HTML_SANITIZE = {
+  allowedTags: sanitizeHtml.defaults.allowedTags.concat([
+    'img',
+    'h1',
+    'h2',
+    'h3',
+    'h4',
+    'span',
+    'div',
+    'table',
+    'thead',
+    'tbody',
+    'tr',
+    'th',
+    'td',
+  ]),
+  allowedAttributes: {
+    ...sanitizeHtml.defaults.allowedAttributes,
+    img: ['src', 'alt', 'width', 'height'],
+    a: ['href', 'name', 'target', 'rel'],
+    '*': ['class'],
+  },
+  allowedSchemes: ['http', 'https', 'data'],
+  allowProtocolRelative: false,
+};
+
+function sanitizeResumeHtml(html) {
+  return sanitizeHtml(html, RESUME_HTML_SANITIZE);
+}
 
 function ensurePhotoInMarkdown(content, photoUrl) {
   if (!photoUrl?.trim() || !content?.trim()) return content || '';
@@ -170,9 +201,10 @@ async function buildResumeHtmlDocument(
 
   const photoDataUri = await resolvePhotoDataUri(photoUrl, content);
 
-  let bodyHtml = marked.parse(markdown);
+  let bodyHtml = sanitizeResumeHtml(marked.parse(markdown));
   bodyHtml = wrapMarkdownHeader(bodyHtml, photoDataUri, headerMeta);
   bodyHtml = transformResumeHtml(bodyHtml);
+  bodyHtml = sanitizeResumeHtml(bodyHtml);
 
   const resumeCss = readResumeStyles();
 

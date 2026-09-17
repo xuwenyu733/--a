@@ -64,6 +64,26 @@ export async function exportXlsxAsPdf(req, res) {
 
   try {
     const buffer = await fs.readFile(filePath)
+    // ZIP/OLE 魔数：合法 xlsx 为 PK\x03\x04；旧版 xls 为 D0 CF 11 E0
+    const isZip = buffer.length >= 4 && buffer[0] === 0x50 && buffer[1] === 0x4b
+    const isOle =
+      buffer.length >= 4 &&
+      buffer[0] === 0xd0 &&
+      buffer[1] === 0xcf &&
+      buffer[2] === 0x11 &&
+      buffer[3] === 0xe0
+    if (!isZip && !isOle) {
+      return res.status(400).json({ success: false, message: '文件内容不是有效的 Excel' })
+    }
+    if (ext === '.xlsx' || isZip) {
+      try {
+        const ExcelJS = (await import('exceljs')).default
+        await new ExcelJS.Workbook().xlsx.load(buffer)
+      } catch {
+        return res.status(400).json({ success: false, message: '无法解析 Excel 文件' })
+      }
+    }
+
     const pdfBuffer = await exportXlsxToPdf(buffer)
     const baseName = decodeFileName(originalname).replace(/\.[^.]+$/, '') || '简历'
 

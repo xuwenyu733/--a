@@ -1,10 +1,10 @@
 import multer from 'multer'
-import { createDiskStorage } from './multerStorage.js'
+import { createDiskStorage, VIDEO_MIME_EXT } from './multerStorage.js'
 
-const storage = createDiskStorage(undefined, '.mp4')
+const storage = createDiskStorage(undefined, '.mp4', VIDEO_MIME_EXT)
 
 const videoFilter = (_req, file, cb) => {
-  if (/^video\/(mp4|webm|quicktime)$/.test(file.mimetype)) {
+  if (VIDEO_MIME_EXT[file.mimetype]) {
     cb(null, true)
   } else {
     cb(new Error('仅支持 MP4 / WebM / MOV 视频'))

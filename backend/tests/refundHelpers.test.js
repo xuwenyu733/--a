@@ -61,6 +61,18 @@ describe('refundHelpers', () => {
     expect(r.ok).toBe(false)
   })
 
+  it('validateCreateRefundRequest rejects already approved refund', () => {
+    const r = validateCreateRefundRequest({
+      order: completedOrder(),
+      buyerId,
+      userId: buyerId,
+      hasPendingRefund: false,
+      hasApprovedRefund: true,
+    })
+    expect(r.ok).toBe(false)
+    expect(r.code).toBe(40900)
+  })
+
   it('validateRespondRefund requires seller and pending status', () => {
     const refund = {
       sellerId,

@@ -16,5 +16,7 @@ const auditLogSchema = new mongoose.Schema(
 
 auditLogSchema.index({ regionId: 1, createdAt: -1 })
 auditLogSchema.index({ operatorId: 1, createdAt: -1 })
+// 审计日志保留 180 天
+auditLogSchema.index({ createdAt: 1 }, { expireAfterSeconds: 180 * 24 * 60 * 60 })
 
 export default mongoose.model('AuditLog', auditLogSchema)

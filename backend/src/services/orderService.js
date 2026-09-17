@@ -268,47 +268,69 @@ export async function updateOrderStatus(orderId, userId, { status, cancelReason 
     throw err
   }
 
-  order.status = status
   if (status === ORDER_STATUS.CANCELLED) {
-    order.cancelReason = cancelReason || ''
     const qty = Math.max(1, Number(order.quantity) || 1)
     const productId = order.productId._id || order.productId
-    const prod = await Product.findById(productId).select('stock status')
-    const wasOutOfStock = prod && Number(prod.stock) <= 0
-    const patch = { $inc: { stock: qty } }
-    // 因售罄自动下架的，回补库存后重新上架
-    if (wasOutOfStock && prod.status === PRODUCT_STATUS.OFF_SHELF) {
-      patch.$set = { status: PRODUCT_STATUS.ON_SALE }
-    } else if (prod?.status === PRODUCT_STATUS.SOLD) {
-      patch.$set = { status: PRODUCT_STATUS.ON_SALE }
+    const updated = await Order.findOneAndUpdate(
+      activeOrderFilter({
+        _id: orderId,
+        status: { $in: [ORDER_STATUS.PENDING, ORDER_STATUS.CONFIRMED] },
+      }),
+      {
+        $set: {
+          status: ORDER_STATUS.CANCELLED,
+          cancelReason: cancelReason || '',
+        },
+      },
+      { new: true }
+    )
+    if (!updated) {
+      const err = new Error('订单已取消或状态已变更')
+      err.code = 40900
+      throw err
     }
-    await Product.findByIdAndUpdate(productId, patch)
-  }
-  if (status === ORDER_STATUS.COMPLETED) {
-    order.completedAt = new Date()
-    // 库存已在下单时扣减；售罄时已自动下架，完成订单不再改商品状态
-    if (order.sellerType === 'merchant') {
-      const MerchantProfile = (await import('../models/MerchantProfile.js')).default
-      await MerchantProfile.findOneAndUpdate(
-        { userId: order.sellerId },
-        { $inc: { 'stats.orderCount': 1 } }
-      )
+
+    const prod = await Product.findOne(activeProductFilter({ _id: productId })).select('stock status')
+    if (prod) {
+      const wasOutOfStock = Number(prod.stock) <= 0
+      const patch = { $inc: { stock: qty } }
+      if (wasOutOfStock && prod.status === PRODUCT_STATUS.OFF_SHELF) {
+        patch.$set = { status: PRODUCT_STATUS.ON_SALE }
+      } else if (prod.status === PRODUCT_STATUS.SOLD) {
+        patch.$set = { status: PRODUCT_STATUS.ON_SALE }
+      }
+      await Product.findOneAndUpdate(activeProductFilter({ _id: productId }), patch)
     }
-    const { rewardOrderComplete } = await import('./creditService.js')
-    await rewardOrderComplete(order)
+    order.status = ORDER_STATUS.CANCELLED
+    order.cancelReason = updated.cancelReason
+  } else {
+    order.status = status
+    if (status === ORDER_STATUS.COMPLETED) {
+      order.completedAt = new Date()
+      if (order.sellerType === 'merchant') {
+        const MerchantProfile = (await import('../models/MerchantProfile.js')).default
+        await MerchantProfile.findOneAndUpdate(
+          { userId: order.sellerId },
+          { $inc: { 'stats.orderCount': 1 } }
+        )
+      }
+      const { rewardOrderComplete } = await import('./creditService.js')
+      await rewardOrderComplete(order)
+    }
+    await order.save()
   }
-  await order.save()
 
   const notifyTarget = isBuyer ? order.sellerId : order.buyerId
   const labels = { confirmed: '已确认', completed: '已完成', cancelled: '已取消' }
+  const title = order.productId?.title || ''
   await notifyUser(notifyTarget, {
     type: 'order_status',
     title: '订单状态更新',
-    content: `订单「${order.productId?.title || ''}」${labels[status] || status}`,
+    content: `订单「${title}」${labels[status] || status}`,
     relatedId: order._id,
   })
 
-  return order.populate([
+  return Order.findById(orderId).populate([
     { path: 'productId', select: 'title images price status' },
     { path: 'buyerId', select: 'nickname avatar phone' },
     { path: 'sellerId', select: 'nickname avatar phone' },

@@ -14,5 +14,8 @@ const messageSchema = new mongoose.Schema(
 )
 
 messageSchema.index({ conversationId: 1, createdAt: -1 })
+messageSchema.index({ conversationId: 1, receiverId: 1, read: 1 })
+// 聊天消息保留 365 天
+messageSchema.index({ createdAt: 1 }, { expireAfterSeconds: 365 * 24 * 60 * 60 })
 
 export default mongoose.model('Message', messageSchema)

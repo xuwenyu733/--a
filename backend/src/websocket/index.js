@@ -4,6 +4,7 @@ import { connectionManager } from './connectionManager.js'
 import * as chatService from '../services/chatService.js'
 import { WS_EVENTS } from '../constants/wsEvents.js'
 import logger from '../utils/logger.js'
+import User from '../models/User.js'
 
 const MAX_WS_PAYLOAD = 64 * 1024
 const MAX_MESSAGE_CONTENT_LENGTH = 5000
@@ -32,6 +33,12 @@ export function initWebSocket(server) {
 
         if (event === WS_EVENTS.AUTH) {
           const decoded = verifyAccessToken(data.token)
+          const user = await User.findById(decoded.userId).select('status')
+          if (!user || user.status === 'banned') {
+            ws.send(JSON.stringify({ event: WS_EVENTS.ERROR, data: { message: '账号不可用' } }))
+            ws.close()
+            return
+          }
           userId = decoded.userId
           authed = true
           connectionManager.add(userId, ws)
@@ -81,7 +88,12 @@ export function initWebSocket(server) {
           return
         }
       } catch (err) {
-        ws.send(JSON.stringify({ event: WS_EVENTS.ERROR, data: { message: err.message || '处理失败' } }))
+        logger.warn(`WS 消息处理失败: ${err.message}`)
+        const clientMsg =
+          err.code && Number(err.code) >= 40000 && Number(err.code) < 50000
+            ? err.message || '处理失败'
+            : '处理失败'
+        ws.send(JSON.stringify({ event: WS_EVENTS.ERROR, data: { message: clientMsg } }))
       }
     })
 

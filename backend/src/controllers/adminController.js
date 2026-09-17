@@ -65,6 +65,7 @@ export async function createAgent(req, res, next) {
       nickname: nickname || `代理${phone.slice(-4)}`,
       role: ROLES.REGIONAL_AGENT,
       regionId,
+      mustChangePassword: true,
     })
     region.agentId = agent._id
     await region.save()

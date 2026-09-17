@@ -13,5 +13,7 @@ const notificationSchema = new mongoose.Schema(
 )
 
 notificationSchema.index({ userId: 1, read: 1, createdAt: -1 })
+// 通知保留 90 天
+notificationSchema.index({ createdAt: 1 }, { expireAfterSeconds: 90 * 24 * 60 * 60 })
 
 export default mongoose.model('Notification', notificationSchema)

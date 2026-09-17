@@ -6,7 +6,7 @@ import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 import { visualizer } from 'rollup-plugin-visualizer'
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     vue(),
     AutoImport({
@@ -32,6 +32,9 @@ export default defineConfig({
     include: ['exceljs'],
   },
   build: {
+    esbuild: {
+      drop: mode === 'production' ? ['console', 'debugger'] : [],
+    },
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -74,9 +77,9 @@ export default defineConfig({
         changeOrigin: true,
       },
       '/ws': {
-        target: 'ws://localhost:3001',
+        target: 'http://localhost:3001',
         ws: true,
       },
     },
   },
-})
+}))

@@ -1,7 +1,5 @@
 const fs = require('fs');
 const path = require('path');
-const http = require('http');
-const https = require('https');
 
 const UPLOADS_DIR = path.join(__dirname, '../../uploads');
 
@@ -11,7 +9,9 @@ function normalizePhotoPath(photoUrl) {
   if (!p) return '';
   if (p.startsWith('http://') || p.startsWith('https://')) {
     try {
-      return new URL(p).pathname;
+      const u = new URL(p);
+      // 仅允许指向本服务 uploads 的路径，禁止任意外网/内网 SSRF
+      return u.pathname;
     } catch {
       return '';
     }
@@ -23,31 +23,18 @@ function normalizePhotoPath(photoUrl) {
 function localPathFromDbPath(dbPath) {
   const normalized = normalizePhotoPath(dbPath);
   if (!normalized.startsWith('/uploads/')) return null;
-  const filename = path.basename(normalized);
-  if (!filename || filename.includes('..')) return null;
-  return path.join(UPLOADS_DIR, filename);
-}
-
-function fetchUrlBuffer(url) {
-  return new Promise((resolve, reject) => {
-    const lib = url.startsWith('https') ? https : http;
-    lib
-      .get(url, (res) => {
-        if (res.statusCode && res.statusCode >= 400) {
-          reject(new Error(`HTTP ${res.statusCode}`));
-          res.resume();
-          return;
-        }
-        const chunks = [];
-        res.on('data', (c) => chunks.push(c));
-        res.on('end', () => resolve(Buffer.concat(chunks)));
-      })
-      .on('error', reject);
-  });
+  // 禁止路径穿越
+  const rel = normalized.slice('/uploads/'.length);
+  if (!rel || rel.includes('..') || path.isAbsolute(rel)) return null;
+  const abs = path.resolve(UPLOADS_DIR, rel);
+  if (!abs.startsWith(path.resolve(UPLOADS_DIR) + path.sep) && abs !== path.resolve(UPLOADS_DIR)) {
+    return null;
+  }
+  return abs;
 }
 
 /**
- * 将存库路径或完整 URL 解析为图片 Buffer，供 PDFKit 使用
+ * 将存库路径解析为图片 Buffer。禁止 fetch 任意 URL（防 SSRF）。
  */
 async function loadResumePhotoBuffer(photoUrl) {
   if (!photoUrl?.trim()) return null;
@@ -55,20 +42,6 @@ async function loadResumePhotoBuffer(photoUrl) {
   const localPath = localPathFromDbPath(photoUrl);
   if (localPath && fs.existsSync(localPath)) {
     return fs.readFileSync(localPath);
-  }
-
-  const raw = photoUrl.trim();
-  if (raw.startsWith('http://') || raw.startsWith('https://')) {
-    try {
-      if (typeof fetch === 'function') {
-        const res = await fetch(raw);
-        if (res.ok) return Buffer.from(await res.arrayBuffer());
-      } else {
-        return await fetchUrlBuffer(raw);
-      }
-    } catch {
-      /* fall through */
-    }
   }
 
   return null;
@@ -82,8 +55,8 @@ function extractFirstImageSrc(content) {
 }
 
 module.exports = {
-  normalizePhotoPath,
-  localPathFromDbPath,
   loadResumePhotoBuffer,
   extractFirstImageSrc,
+  normalizePhotoPath,
+  localPathFromDbPath,
 };

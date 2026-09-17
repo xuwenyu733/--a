@@ -7,6 +7,10 @@ import User from '../models/User.js'
 import { ROLES } from '../constants/roles.js'
 
 async function seed() {
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_SEED !== '1') {
+    logger.error('[安全] 生产环境禁止执行 seed。若确认需要，请设置 ALLOW_SEED=1')
+    process.exit(1)
+  }
   await mongoose.connect(config.mongodbUri)
   logger.info('🌱 开始初始化数据...')
 

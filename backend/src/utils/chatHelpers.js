@@ -25,13 +25,40 @@ export function validateConversationParticipant(participants, userId, { forbidde
 }
 
 export function validateMessageContent(content, type, maxLen = MAX_MESSAGE_CONTENT_LENGTH) {
-  if (type === 'image') return { ok: true }
+  if (type === 'image') {
+    const url = String(content || '').trim()
+    if (!url) return { ok: false, message: '图片地址不能为空', code: 40000 }
+    if (!isPlatformMediaUrl(url)) {
+      return { ok: false, message: '仅支持平台上传的图片', code: 40000 }
+    }
+    if (url.length > maxLen) {
+      return { ok: false, message: `消息最多 ${maxLen} 字`, code: 40000 }
+    }
+    return { ok: true }
+  }
   const text = (content || '').trim()
   if (!text) return { ok: false, message: '消息不能为空', code: 40000 }
   if (text.length > maxLen) {
     return { ok: false, message: `消息最多 ${maxLen} 字`, code: 40000 }
   }
   return { ok: true }
+}
+
+/** 仅允许本站 /uploads 路径（含可选同源绝对 URL），拒绝外链 */
+export function isPlatformMediaUrl(content) {
+  const s = String(content || '').trim()
+  if (!s) return false
+  if (s.startsWith('/uploads/')) {
+    return /^\/uploads\/[A-Za-z0-9/_.=+-]+$/.test(s) && !s.includes('..')
+  }
+  try {
+    const u = new URL(s)
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return false
+    if (u.username || u.password) return false
+    return u.pathname.startsWith('/uploads/') && !u.pathname.includes('..')
+  } catch {
+    return false
+  }
 }
 
 export function validateContactSeller(buyerId, sellerId) {

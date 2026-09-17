@@ -7,7 +7,8 @@ export async function getMeta(req, res) {
 
 export async function list(req, res, next) {
   try {
-    const data = await productService.listProducts(req.query, req.user || null)
+    const query = req.validatedQuery || req.query
+    const data = await productService.listProducts(query, req.user || null)
     return success(res, data)
   } catch (err) {
     next(err)

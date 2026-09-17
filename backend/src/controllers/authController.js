@@ -1,5 +1,5 @@
-import config from '../config/index.js'
 import * as authService from '../services/authService.js'
+import * as smsCodeService from '../services/smsCodeService.js'
 import { ErrorCodes, fail, success } from '../utils/response.js'
 import {
   clearRefreshTokenCookie,
@@ -20,8 +20,8 @@ export async function sendCode(req, res, next) {
   try {
     const { phone } = req.body
     if (!phone) return fail(res, ErrorCodes.BAD_REQUEST, '请输入手机号')
-    // 开发环境固定验证码
-    return success(res, { code: config.devSmsCode }, '验证码已发送（开发模式）')
+    const result = await smsCodeService.issueSmsCode(phone)
+    return success(res, result, '验证码已发送')
   } catch (err) {
     next(err)
   }
@@ -33,8 +33,10 @@ export async function register(req, res, next) {
     if (!phone || !password || !regionId) {
       return fail(res, ErrorCodes.BAD_REQUEST, '请填写完整信息')
     }
-    if (code !== config.devSmsCode) {
-      return fail(res, ErrorCodes.BAD_REQUEST, '验证码错误')
+    try {
+      await smsCodeService.consumeSmsCode(phone, code)
+    } catch (e) {
+      return fail(res, e.code || ErrorCodes.BAD_REQUEST, e.message || '验证码错误')
     }
     const user = await authService.register({ phone, password, nickname, regionId })
     const { accessToken, refreshToken } = await authService.issueTokens(user)
@@ -82,13 +84,20 @@ export async function refreshToken(req, res, next) {
   try {
     const token = getRefreshTokenFromRequest(req)
     if (!token) return fail(res, ErrorCodes.BAD_REQUEST, '缺少 refreshToken')
-    const { accessToken, user } = await authService.refreshAccessToken(token)
+    const { accessToken, refreshToken: newRefreshToken, user } =
+      await authService.refreshAccessToken(token)
+    setRefreshTokenCookie(res, newRefreshToken)
     const populated = await user.populate('regionId', 'name code')
-    return success(res, {
-      accessToken,
-      user: authService.sanitizeUser(populated, { self: false }),
-    })
+    return success(
+      res,
+      buildAuthData(req, {
+        user: authService.sanitizeUser(populated, { self: false }),
+        accessToken,
+        refreshToken: newRefreshToken,
+      })
+    )
   } catch (err) {
+    clearRefreshTokenCookie(res)
     return fail(res, ErrorCodes.UNAUTHORIZED, 'refreshToken 无效', 401)
   }
 }

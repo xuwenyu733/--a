@@ -5,17 +5,21 @@ import { createApp } from '../src/createApp.js'
 const app = createApp()
 
 describe('API integration', () => {
-  it('GET /api/health returns ok', async () => {
+  it('GET /api/health reports dependencies', async () => {
     const res = await request(app).get('/api/health')
-    expect(res.status).toBe(200)
-    expect(res.body.code).toBe(0)
-    expect(res.body.data.status).toBe('running')
+    // 本套件不连库 → 503 degraded；有库时为 200
+    expect([200, 503]).toContain(res.status)
+    expect(res.body.data).toMatchObject({
+      db: expect.stringMatching(/^(up|down)$/),
+      redis: expect.stringMatching(/^(up|down|disabled)$/),
+      uploads: expect.stringMatching(/^(writable|unwritable)$/),
+    })
   })
 
-  it('GET /api/v1/health returns ok', async () => {
+  it('GET /api/v1/health reports dependencies', async () => {
     const res = await request(app).get('/api/v1/health')
-    expect(res.status).toBe(200)
-    expect(res.body.code).toBe(0)
+    expect([200, 503]).toContain(res.status)
+    expect(res.body.data).toHaveProperty('db')
   })
 
   it('GET /api/v1/products/meta returns categories', async () => {

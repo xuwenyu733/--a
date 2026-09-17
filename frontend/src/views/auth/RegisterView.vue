@@ -80,7 +80,7 @@ onMounted(async () => {
 async function sendSms() {
   if (!form.value.phone) return ElMessage.warning('请先输入手机号')
   await authApi.sendCode(form.value.phone)
-  ElMessage.success('验证码已发送（开发模式: 123456）')
+  ElMessage.success('验证码已发送（开发环境请填 123456，接口不再返回验证码）')
   countdown.value = 60
   const t = setInterval(() => {
     countdown.value--

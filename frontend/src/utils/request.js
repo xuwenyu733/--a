@@ -11,6 +11,8 @@ const request = axios.create({
 
 attachAuthInterceptors(request)
 
+let last429At = 0
+
 request.interceptors.response.use(
   (data) => data,
   (error) => {
@@ -19,14 +21,23 @@ request.interceptors.response.use(
     const url = error.config?.url || ''
     const isLoginAttempt = /\/auth\/(login|wechat-login)/.test(url)
     const isUnauthenticatedRequest = !error.config?.headers?.Authorization
+    const status = error.response?.status
+    const is429 = status === 429 || resData?.code === 40029
 
-    // 登录页自己展示错误（含表单内提示），此处不再弹，避免重复
     if (isLoginAttempt) {
       return Promise.reject(error)
     }
-    if (error.response?.status === 401 && isUnauthenticatedRequest) {
+    if (is429) {
+      const now = Date.now()
+      if (now - last429At > 3000) {
+        last429At = now
+        ElMessage.warning(msg || '请求过于频繁，请稍后再试')
+      }
+      return Promise.reject(error)
+    }
+    if (status === 401 && isUnauthenticatedRequest) {
       ElMessage.error(msg)
-    } else if (error.response?.status !== 401) {
+    } else if (status !== 401) {
       ElMessage.error(msg)
     }
     return Promise.reject(error)

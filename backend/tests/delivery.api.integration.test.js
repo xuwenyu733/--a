@@ -100,7 +100,7 @@ describe('delivery API (integration)', () => {
     expect(res.body.code).toBe(40301)
   })
 
-  it('marks own orders in open hall and rejects self-accept', async () => {
+  it('excludes own orders from open hall and rejects self-accept', async () => {
     const { poster, sampleOrder } = await seedDeliveryFixture({ suffix: 'dz5', courierSameAsPoster: true })
 
     const createRes = await request(app)
@@ -114,10 +114,8 @@ describe('delivery API (integration)', () => {
       .set(authHeader(poster))
     expect(openRes.status).toBe(200)
     const own = openRes.body.data.list.find((o) => o._id === orderId)
-    expect(own).toBeTruthy()
-    expect(own.isOwnOrder).toBe(true)
-    expect(own.contactPhone).toBe('')
-    expect(openRes.body.data.pagination.total).toBe(1)
+    expect(own).toBeUndefined()
+    expect(openRes.body.data.pagination.total).toBe(0)
     expect(openRes.body.data.pagination.acceptableTotal).toBe(0)
 
     const acceptRes = await request(app)

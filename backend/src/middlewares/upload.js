@@ -1,10 +1,10 @@
 import multer from 'multer'
-import { createDiskStorage } from './multerStorage.js'
+import { createDiskStorage, IMAGE_MIME_EXT } from './multerStorage.js'
 
-const storage = createDiskStorage(undefined, '.jpg')
+const storage = createDiskStorage(undefined, '.jpg', IMAGE_MIME_EXT)
 
 const fileFilter = (req, file, cb) => {
-  if (/^image\/(jpeg|png|gif|webp)$/.test(file.mimetype)) {
+  if (IMAGE_MIME_EXT[file.mimetype]) {
     cb(null, true)
   } else {
     cb(new Error('仅支持图片格式'))

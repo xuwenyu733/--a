@@ -17,6 +17,18 @@ function extractRefreshToken(setCookie) {
   return null
 }
 
+async function registerWithCode(payload) {
+  const sendRes = await request(app).post('/api/v1/auth/send-code').send({ phone: payload.phone })
+  expect(sendRes.status).toBe(200)
+  expect(sendRes.body.code).toBe(0)
+  expect(sendRes.body.data?.code).toBeUndefined()
+  expect(sendRes.body.data?.expiresIn).toBeGreaterThan(0)
+
+  return request(app)
+    .post('/api/v1/auth/register')
+    .send({ ...payload, code: config.devSmsCode })
+}
+
 describe('auth API (integration)', () => {
   beforeAll(async () => {
     await connectTestDb()
@@ -31,17 +43,22 @@ describe('auth API (integration)', () => {
     await Region.create({ name: '测试校区', code: 'auth_api', status: 'active' })
   })
 
+  it('POST /api/v1/auth/send-code does not echo code', async () => {
+    const res = await request(app).post('/api/v1/auth/send-code').send({ phone: '13800003999' })
+    expect(res.status).toBe(200)
+    expect(res.body.code).toBe(0)
+    expect(res.body.data).not.toHaveProperty('code')
+    expect(res.body.data.expiresIn).toBe(300)
+  })
+
   it('POST /api/v1/auth/register then login', async () => {
     const region = await Region.findOne({ code: 'auth_api' })
-    const registerRes = await request(app)
-      .post('/api/v1/auth/register')
-      .send({
-        phone: '13800003001',
-        password: 'abc123',
-        code: config.devSmsCode,
-        nickname: 'API用户',
-        regionId: region._id.toString(),
-      })
+    const registerRes = await registerWithCode({
+      phone: '13800003001',
+      password: 'abc123',
+      nickname: 'API用户',
+      regionId: region._id.toString(),
+    })
     expect(registerRes.status).toBe(200)
     expect(registerRes.body.code).toBe(0)
     expect(registerRes.body.data.accessToken).toBeTruthy()
@@ -54,9 +71,22 @@ describe('auth API (integration)', () => {
     expect(loginRes.body.data.user.phone).toBe('13800003001')
   })
 
+  it('rejects register without prior send-code', async () => {
+    const region = await Region.findOne({ code: 'auth_api' })
+    const res = await request(app).post('/api/v1/auth/register').send({
+      phone: '13800003009',
+      password: 'abc123',
+      code: config.devSmsCode,
+      regionId: region._id.toString(),
+    })
+    expect(res.status).toBe(400)
+    expect(res.body.code).not.toBe(0)
+  })
+
   it('POST /api/v1/auth/refresh-token via cookie', async () => {
     const region = await Region.findOne({ code: 'auth_api' })
     const agent = request.agent(app)
+    await agent.post('/api/v1/auth/send-code').send({ phone: '13800003002' })
     await agent.post('/api/v1/auth/register').send({
       phone: '13800003002',
       password: 'abc123',
@@ -73,14 +103,11 @@ describe('auth API (integration)', () => {
 
   it('POST /api/v1/auth/refresh-token via body', async () => {
     const region = await Region.findOne({ code: 'auth_api' })
-    const loginRes = await request(app)
-      .post('/api/v1/auth/register')
-      .send({
-        phone: '13800003003',
-        password: 'abc123',
-        code: config.devSmsCode,
-        regionId: region._id.toString(),
-      })
+    const loginRes = await registerWithCode({
+      phone: '13800003003',
+      password: 'abc123',
+      regionId: region._id.toString(),
+    })
     const refreshToken = extractRefreshToken(loginRes.headers['set-cookie'])
 
     const refreshRes = await request(app)
@@ -92,14 +119,11 @@ describe('auth API (integration)', () => {
 
   it('GET /api/v1/auth/me and POST /api/v1/auth/logout', async () => {
     const region = await Region.findOne({ code: 'auth_api' })
-    const loginRes = await request(app)
-      .post('/api/v1/auth/register')
-      .send({
-        phone: '13800003004',
-        password: 'abc123',
-        code: config.devSmsCode,
-        regionId: region._id.toString(),
-      })
+    const loginRes = await registerWithCode({
+      phone: '13800003004',
+      password: 'abc123',
+      regionId: region._id.toString(),
+    })
     const accessToken = loginRes.body.data.accessToken
     const refreshToken = extractRefreshToken(loginRes.headers['set-cookie'])
 

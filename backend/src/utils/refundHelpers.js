@@ -19,6 +19,7 @@ export function validateCreateRefundRequest({
   buyerId,
   userId,
   hasPendingRefund,
+  hasApprovedRefund,
   now = new Date(),
 }) {
   if (!order) {
@@ -35,6 +36,9 @@ export function validateCreateRefundRequest({
   }
   if (hasPendingRefund) {
     return { ok: false, message: '该订单已有进行中的退款申请', code: 40900 }
+  }
+  if (hasApprovedRefund) {
+    return { ok: false, message: '该订单已完成退款，不可再次申请', code: 40900 }
   }
   const completedAt = order.completedAt ? new Date(order.completedAt) : null
   if (!completedAt) {

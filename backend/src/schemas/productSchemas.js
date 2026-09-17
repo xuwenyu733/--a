@@ -33,3 +33,17 @@ export const updateProductSchema = createProductSchema
 export const updateProductStatusSchema = z.object({
   status: z.enum(['on_sale', 'off_shelf', 'sold']),
 })
+
+export const listProductsQuerySchema = z.object({
+  keyword: z.string().trim().max(50, '搜索词最多 50 字').optional(),
+  category: categoryEnum.optional(),
+  condition: conditionEnum.optional(),
+  status: z.enum(['on_sale', 'off_shelf', 'sold', 'rejected']).optional(),
+  regionId: z.string().optional(),
+  sellerId: z.string().optional(),
+  minPrice: z.coerce.number().min(0).optional(),
+  maxPrice: z.coerce.number().min(0).optional(),
+  sort: z.string().max(32).optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  pageSize: z.coerce.number().int().min(1).max(50).optional(),
+})

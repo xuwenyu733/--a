@@ -54,14 +54,22 @@ if (isProd && !mongoHasAuth) {
 
 const devSmsCode = process.env.DEV_SMS_CODE || '123456'
 const smsConfigured = Boolean(process.env.SMS_HOST || process.env.SMS_ACCESS_KEY_ID)
-if (isProd && !smsConfigured && devSmsCode === '123456') {
-  logger.error('[安全] 生产环境禁止使用固定验证码 123456，请配置真实短信服务或设置非默认 DEV_SMS_CODE')
+if (isProd && !smsConfigured) {
+  logger.warn(
+    '[安全] 生产环境未配置真实短信（SMS_HOST / SMS_ACCESS_KEY_ID）。验证码不会返回客户端，但仍建议尽快接入短信；禁止将 DEV_SMS_CODE 告知用户以外的人。'
+  )
+}
+if (isProd && !smsConfigured && devSmsCode === '123456' && process.env.ALLOW_DEFAULT_SMS !== '1') {
+  logger.error(
+    '[安全] 生产环境禁止默认验证码 123456。请配置短信，或设置非默认 DEV_SMS_CODE，或显式 ALLOW_DEFAULT_SMS=1'
+  )
   process.exit(1)
 }
 
 export default {
   port: process.env.PORT || 3000,
   mongodbUri,
+  isProd,
   jwt: {
     secret: process.env.JWT_SECRET || 'dev-secret',
     refreshSecret: process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret',

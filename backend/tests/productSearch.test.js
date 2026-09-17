@@ -15,6 +15,12 @@ describe('applyProductKeywordFilter', () => {
     expect(filter.$text).toBeUndefined()
   })
 
+  it('escapes regex metacharacters in short keywords', () => {
+    const filter = {}
+    applyProductKeywordFilter(filter, '.*')
+    expect(filter.$or[0].title.$regex).toBe('\\.\\*')
+  })
+
   it('uses text index for long non-pinyin keywords', () => {
     const filter = {}
     applyProductKeywordFilter(filter, '高等数学教材')

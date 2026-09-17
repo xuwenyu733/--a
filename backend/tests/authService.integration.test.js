@@ -71,7 +71,7 @@ describe('authService (integration)', () => {
     ).rejects.toMatchObject({ code: 40900 })
   })
 
-  it('refreshAccessToken and logout invalidate refresh token', async () => {
+  it('refreshAccessToken rotates refresh token and rejects reuse', async () => {
     const region = await Region.findOne({ code: 'auth_svc' })
     const user = await register({
       phone: '13800004004',
@@ -79,10 +79,17 @@ describe('authService (integration)', () => {
       regionId: region._id,
     })
     const { refreshToken } = await issueTokens(user)
-    const refreshed = await refreshAccessToken(refreshToken)
-    expect(refreshed.accessToken).toBeTruthy()
+    const rotated = await refreshAccessToken(refreshToken)
+    expect(rotated.accessToken).toBeTruthy()
+    expect(rotated.refreshToken).toBeTruthy()
+    expect(rotated.refreshToken).not.toBe(refreshToken)
 
-    await logout(user._id)
+    // 连续轮换：新 token 可再刷新
+    const again = await refreshAccessToken(rotated.refreshToken)
+    expect(again.refreshToken).not.toBe(rotated.refreshToken)
+
+    // 复用任一旧 token → 整会话作废（含当前库中 token）
     await expect(refreshAccessToken(refreshToken)).rejects.toMatchObject({ code: 40100 })
+    await expect(refreshAccessToken(again.refreshToken)).rejects.toMatchObject({ code: 40100 })
   })
 })

@@ -89,15 +89,49 @@ export async function issueTokens(user) {
 }
 
 export async function refreshAccessToken(refreshToken) {
-  const decoded = verifyRefreshToken(refreshToken)
-  const user = await User.findById(decoded.userId).select('+refreshToken')
-  if (!user || user.refreshToken !== refreshToken) {
+  let decoded
+  try {
+    decoded = verifyRefreshToken(refreshToken)
+  } catch {
     const err = new Error('无效的 refreshToken')
     err.code = 40100
     throw err
   }
-  const accessToken = signAccessToken(buildTokenPayload(user))
-  return { accessToken, user }
+
+  const user = await User.findById(decoded.userId).select('+refreshToken')
+  if (!user || user.status === 'banned') {
+    const err = new Error('无效的 refreshToken')
+    err.code = 40100
+    throw err
+  }
+
+  // 复用检测：库中已轮换过，却仍用旧 token → 清空会话
+  if (!user.refreshToken || user.refreshToken !== refreshToken) {
+    if (user.refreshToken) {
+      await User.findByIdAndUpdate(user._id, { refreshToken: null })
+    }
+    const err = new Error('无效的 refreshToken')
+    err.code = 40100
+    throw err
+  }
+
+  const payload = buildTokenPayload(user)
+  const accessToken = signAccessToken(payload)
+  const newRefreshToken = signRefreshToken(payload)
+
+  const updated = await User.findOneAndUpdate(
+    { _id: user._id, refreshToken },
+    { $set: { refreshToken: newRefreshToken } },
+    { new: true }
+  )
+  if (!updated) {
+    await User.findByIdAndUpdate(user._id, { refreshToken: null })
+    const err = new Error('无效的 refreshToken')
+    err.code = 40100
+    throw err
+  }
+
+  return { accessToken, refreshToken: newRefreshToken, user: updated }
 }
 
 export async function logout(userId) {

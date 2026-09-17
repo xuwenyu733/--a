@@ -6,6 +6,8 @@ import {
   handleSessionExpired,
 } from './authRetry'
 
+let last429At = 0
+
 export function request(options) {
   return new Promise((resolve, reject) => {
     const token = getAccessToken()
@@ -36,6 +38,17 @@ function handleResponse(res, options, resolve, reject, canRetry) {
     return reject(new Error('响应格式错误'))
   }
   if (body.code === 0) return resolve(body.data)
+
+  if (res.statusCode === 429 || body.code === 40029) {
+    const now = Date.now()
+    if (now - last429At > 3000) {
+      last429At = now
+      uni.showToast({ title: body.message || '请求过于频繁', icon: 'none' })
+    }
+    const err = new Error(body.message || '请求过于频繁')
+    err.code = body.code || 40029
+    return reject(err)
+  }
 
   const url = options.url || ''
   const isAuthEndpoint = /\/auth\/(login|register|wechat-login|send-code|refresh-token)/.test(url)

@@ -37,10 +37,16 @@ async function launchBrowser() {
     );
   }
 
+  const noSandbox = process.env.PUPPETEER_NO_SANDBOX === '1';
+  const args = ['--font-render-hinting=none', '--disable-dev-shm-usage'];
+  if (noSandbox) {
+    args.push('--no-sandbox', '--disable-setuid-sandbox');
+  }
+
   return puppeteer.launch({
     executablePath,
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--font-render-hinting=none'],
+    args,
   });
 }
 

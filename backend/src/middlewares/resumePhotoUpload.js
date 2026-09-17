@@ -1,13 +1,19 @@
 import multer from 'multer'
-import { createDiskStorage } from './multerStorage.js'
+import { createDiskStorage, IMAGE_MIME_EXT } from './multerStorage.js'
 
-const storage = createDiskStorage(undefined, '.jpg')
+const photoMime = {
+  'image/jpeg': IMAGE_MIME_EXT['image/jpeg'],
+  'image/png': IMAGE_MIME_EXT['image/png'],
+  'image/webp': IMAGE_MIME_EXT['image/webp'],
+}
+
+const storage = createDiskStorage(undefined, '.jpg', photoMime)
 
 export const resumePhotoUpload = multer({
   storage,
   limits: { fileSize: 3 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    if (/^image\/(jpeg|png|webp)$/.test(file.mimetype)) cb(null, true)
+    if (photoMime[file.mimetype]) cb(null, true)
     else cb(new Error('证件照仅支持 JPG / PNG / WebP'))
   },
 }).single('photo')
