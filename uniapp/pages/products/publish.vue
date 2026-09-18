@@ -36,7 +36,7 @@
       <text class="label">交易地点</text>
       <input class="input" v-model="form.location" placeholder="如：东区宿舍楼下" />
 
-      <text class="label">商品图片（最多 9 张）</text>
+      <text class="label">商品图片（最多 9 张，过大将自动压缩）</text>
       <view class="img-grid">
         <view v-for="(img, i) in imageUrls" :key="img" class="img-item">
           <image :src="img" mode="aspectFill" class="thumb" />
@@ -68,7 +68,8 @@
 import { ref, computed } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { create, update, getDetail } from '@/api/product'
-import { uploadProductImage } from '@/utils/upload'
+import { uploadProductImage, uploadProductVideo } from '@/utils/upload'
+import { compressImageForUpload } from '@/utils/imageCompress'
 import { getFileUrl } from '@/utils/fileUrl'
 import { ensureLogin, getUser, isLoggedIn, saveSession, getAccessToken, getRefreshToken } from '@/utils/auth'
 import { getMe } from '@/api/auth'
@@ -147,7 +148,7 @@ async function loadDetail(id) {
       location: p.location || '',
       description: p.description || '',
       images: [...(p.images || [])],
-      video: p.video || '',
+      video: (Array.isArray(p.videos) && p.videos[0]) || p.video || '',
     }
     categoryIndex.value = Math.max(0, CATEGORIES.findIndex((c) => c.value === p.category))
     conditionIndex.value = Math.max(0, CONDITIONS.findIndex((c) => c.value === p.condition))
@@ -179,7 +180,8 @@ function chooseImages() {
       uploading.value = true
       try {
         for (const path of res.tempFilePaths) {
-          const data = await uploadProductImage(path)
+          const compressedPath = await compressImageForUpload(path)
+          const data = await uploadProductImage(compressedPath)
           const stored = data.paths?.[0] ?? data.urls?.[0]
           if (stored) form.value.images.push(stored)
         }
@@ -204,8 +206,8 @@ function chooseVideo() {
     success: async (res) => {
       uploading.value = true
       try {
-        const data = await uploadProductImage(res.tempFilePath)
-        const stored = data.paths?.[0] ?? data.urls?.[0]
+        const data = await uploadProductVideo(res.tempFilePath)
+        const stored = data.path || data.url
         if (stored) {
           form.value.video = stored
           videoFile.value = res.tempFilePath
@@ -251,7 +253,7 @@ async function submit() {
       location: form.value.location.trim(),
       description: form.value.description.trim(),
       images: form.value.images,
-      video: form.value.video || undefined,
+      videos: form.value.video ? [form.value.video] : [],
     }
     if (productId.value) {
       await update(productId.value, payload)
