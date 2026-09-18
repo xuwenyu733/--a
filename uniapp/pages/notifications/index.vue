@@ -93,6 +93,7 @@ function navigate(n) {
     case 'new_order':
     case 'trade_review':
     case 'order_payment':
+    case 'refund':
       uni.navigateTo({ url: '/pages/orders/index' })
       break
     case 'friend_request':

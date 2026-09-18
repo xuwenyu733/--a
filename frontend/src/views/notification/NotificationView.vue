@@ -63,7 +63,7 @@ async function load() {
 
 function canNavigate(n) {
   if (!n.relatedId) return false
-  return ['delivery', 'price_drop', 'order_status', 'new_order', 'trade_review', 'order_payment'].includes(n.type)
+  return ['delivery', 'price_drop', 'order_status', 'new_order', 'trade_review', 'order_payment', 'refund'].includes(n.type)
 }
 
 function navigatePath(n) {
@@ -76,6 +76,7 @@ function navigatePath(n) {
     case 'new_order':
     case 'trade_review':
     case 'order_payment':
+    case 'refund':
       return { path: '/user/orders' }
     default:
       return null
