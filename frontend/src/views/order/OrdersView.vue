@@ -22,7 +22,7 @@
         v-else-if="list.length"
         class="order-scroller"
         :items="list"
-        :item-size="248"
+        :item-size="280"
         key-field="_id"
         v-slot="{ item: order }"
       >
@@ -49,6 +49,7 @@
               <p v-if="order.reviewSummary?.theirReview" class="review-hint">
                 对方评价：{{ order.reviewSummary.theirReview.rating }} 星
               </p>
+              <p v-if="order.refundHint" class="refund-hint">{{ order.refundHint }}</p>
             </div>
           </div>
           <div class="order-actions">
@@ -84,6 +85,24 @@
                 已评价 {{ order.reviewSummary.myReview.rating }} 星
               </el-tag>
             </template>
+            <el-button
+              v-if="roleTab === 'buy' && order.canApplyRefund"
+              size="small"
+              type="danger"
+              plain
+              @click="openRefundApply(order)"
+            >申请退款</el-button>
+            <el-button
+              v-if="roleTab === 'buy' && order.refund?.status === 'pending'"
+              size="small"
+              @click="cancelRefundRequest(order)"
+            >撤销退款</el-button>
+            <el-button
+              v-if="roleTab === 'sell' && order.refund?.status === 'pending'"
+              size="small"
+              type="warning"
+              @click="openRefundRespond(order)"
+            >处理退款</el-button>
             <el-button
               v-if="order.status === 'completed' || order.status === 'cancelled'"
               size="small"
@@ -141,6 +160,51 @@
       </template>
     </el-dialog>
 
+    <el-dialog
+      v-model="refundVisible"
+      :title="refundMode === 'apply' ? '申请退款' : '处理退款'"
+      width="440px"
+      align-center
+      destroy-on-close
+    >
+      <p class="confirm-body">{{ refundOrder?.productId?.title }} · ¥{{ refundOrder?.price }}</p>
+      <template v-if="refundMode === 'apply'">
+        <p class="refund-note">完成订单后 7 天内可申请。卖家同意后双方线下协商退款（微信自动退回需正式支付接入后开通）。</p>
+        <el-input
+          v-model="refundReason"
+          type="textarea"
+          :rows="4"
+          maxlength="500"
+          show-word-limit
+          placeholder="请填写退款原因（必填）"
+        />
+      </template>
+      <template v-else>
+        <p class="confirm-body">买家原因：{{ refundOrder?.refund?.reason || '—' }}</p>
+        <el-input
+          v-model="refundReply"
+          type="textarea"
+          :rows="3"
+          maxlength="500"
+          show-word-limit
+          placeholder="回复买家（选填）"
+        />
+      </template>
+      <template #footer>
+        <el-button @click="refundVisible = false">关闭</el-button>
+        <el-button
+          v-if="refundMode === 'apply'"
+          type="danger"
+          :loading="refundBusy"
+          @click="submitRefundApply"
+        >提交申请</el-button>
+        <template v-else>
+          <el-button :loading="refundBusy" @click="submitRefundRespond('reject')">拒绝</el-button>
+          <el-button type="primary" :loading="refundBusy" @click="submitRefundRespond('approve')">同意退款</el-button>
+        </template>
+      </template>
+    </el-dialog>
+
     <OrderPaymentDialog
       v-model="payDialogVisible"
       :order="payOrder"
@@ -159,7 +223,14 @@ import { ElMessage } from 'element-plus'
 import * as orderApi from '@/api/order'
 import * as chatApi from '@/api/chat'
 import * as reviewApi from '@/api/review'
-import { ORDER_STATUS_LABELS, ORDER_STATUS_TYPE, PAYMENT_STATUS_LABELS } from '@/constants/order'
+import * as refundApi from '@/api/refund'
+import {
+  ORDER_STATUS_LABELS,
+  ORDER_STATUS_TYPE,
+  PAYMENT_STATUS_LABELS,
+  REFUND_STATUS_LABELS,
+  canApplyRefund,
+} from '@/constants/order'
 import OrderPaymentDialog from '@/components/OrderPaymentDialog.vue'
 import OrderListSkeleton from '@/components/OrderListSkeleton.vue'
 import { getFileUrl } from '@/utils/fileUrl'
@@ -185,6 +256,13 @@ const rateTexts = ['很差', '较差', '一般', '满意', '非常满意']
 
 const payDialogVisible = ref(false)
 const payOrder = ref(null)
+
+const refundVisible = ref(false)
+const refundMode = ref('apply')
+const refundOrder = ref(null)
+const refundReason = ref('')
+const refundReply = ref('')
+const refundBusy = ref(false)
 
 const confirmVisible = ref(false)
 const confirmLoading = ref(false)
@@ -240,13 +318,101 @@ async function load() {
     const params = { role: roleTab.value }
     if (statusTab.value) params.status = statusTab.value
     const res = await orderApi.getOrders(params)
-    list.value = res.list || []
-    await loadReviewSummaries(list.value)
+    const orders = res.list || []
+    await loadReviewSummaries(orders)
+    const refundMap = await loadRefundMap()
+    list.value = orders.map((order) => {
+      const refund = refundMap[String(order._id)] || null
+      return {
+        ...order,
+        refund,
+        refundHint: refund ? REFUND_STATUS_LABELS[refund.status] || '' : '',
+        canApplyRefund: roleTab.value === 'buy' && canApplyRefund(order, refund),
+      }
+    })
   } catch (e) {
     error.value = e.message || '加载订单失败'
   } finally {
     loading.value = false
   }
+}
+
+async function loadRefundMap() {
+  try {
+    const res = await refundApi.listRefunds({ role: roleTab.value, pageSize: 50 })
+    const map = {}
+    for (const item of res.list || []) {
+      const oid = item.orderId?._id || item.orderId
+      if (oid) map[String(oid)] = item
+    }
+    return map
+  } catch {
+    return {}
+  }
+}
+
+function openRefundApply(order) {
+  refundMode.value = 'apply'
+  refundOrder.value = order
+  refundReason.value = ''
+  refundReply.value = ''
+  refundVisible.value = true
+}
+
+function openRefundRespond(order) {
+  refundMode.value = 'respond'
+  refundOrder.value = order
+  refundReason.value = ''
+  refundReply.value = ''
+  refundVisible.value = true
+}
+
+async function submitRefundApply() {
+  const reason = String(refundReason.value || '').trim()
+  if (!reason) {
+    ElMessage.warning('请填写退款原因')
+    return
+  }
+  if (refundBusy.value || !refundOrder.value) return
+  refundBusy.value = true
+  try {
+    await refundApi.createRefund(refundOrder.value._id, { reason })
+    ElMessage.success('已提交退款申请')
+    refundVisible.value = false
+    load()
+  } finally {
+    refundBusy.value = false
+  }
+}
+
+async function submitRefundRespond(action) {
+  if (refundBusy.value || !refundOrder.value) return
+  refundBusy.value = true
+  try {
+    await refundApi.respondRefund(refundOrder.value._id, {
+      action,
+      reply: String(refundReply.value || '').trim(),
+    })
+    ElMessage.success(action === 'approve' ? '已同意退款' : '已拒绝')
+    refundVisible.value = false
+    load()
+  } finally {
+    refundBusy.value = false
+  }
+}
+
+function cancelRefundRequest(order) {
+  openConfirm({
+    title: '撤销退款',
+    message: '确定撤销这条退款申请？',
+    buttonText: '撤销',
+    buttonType: 'danger',
+    action: async () => {
+      await refundApi.cancelRefund(order._id)
+      ElMessage.success('已撤销')
+      load()
+    },
+  })
 }
 
 function goProduct(order) {
@@ -394,6 +560,8 @@ onMounted(load)
 .price { color: #f56c6c; font-weight: 700; margin: 0; }
 .peer, .remark, .review-hint, .pay-hint { font-size: 13px; color: #606266; margin: 4px 0 0; }
 .pay-hint { color: var(--el-color-warning); }
+.refund-hint { color: #f56c6c; }
+.refund-note { margin: 0 0 12px; font-size: 13px; color: var(--app-muted); line-height: 1.5; }
 .pay-amount { margin: 0 0 12px; }
 .pay-qr { width: 100%; max-width: 240px; display: block; margin: 0 auto; border-radius: 8px; }
 .pay-tip { text-align: center; font-size: 13px; color: var(--app-muted); margin-top: 12px; }
