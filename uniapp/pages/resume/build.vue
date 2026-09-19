@@ -50,20 +50,20 @@
         </view>
 
         <view v-else>
-          <view
-            v-for="h in history"
-            :key="h._id"
-            class="history-item"
+        <view
+          v-for="h in history"
+          :key="h._id"
+          class="history-item"
             @tap="openResume(h)"
-          >
-            <view class="history-left">
+        >
+          <view class="history-left">
               <text class="history-name">{{ resumeTitle(h) }}</text>
               <text class="history-meta">{{ resumeMeta(h) }}</text>
               <text class="history-time">{{ formatTime(h.updatedAt || h.createdAt) }} · 点击查看 PDF</text>
-            </view>
-            <text class="history-arrow">›</text>
           </view>
+          <text class="history-arrow">›</text>
         </view>
+      </view>
       </view>
     </view>
   </view>
