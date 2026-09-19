@@ -112,7 +112,17 @@ export async function assertSafeUploadedFile(file) {
   const maybeVideo = isVideo || !mime || mime === 'application/octet-stream'
   if (maybeVideo) {
     const kind = detectVideoKind(buf)
-    if (kind) return file
+    if (kind) {
+      const expectedExt = KIND_EXT[kind]
+      if (path.extname(file.filename).toLowerCase() !== expectedExt) {
+        const newName = `${path.basename(file.filename, path.extname(file.filename))}${expectedExt}`
+        const newPath = path.join(path.dirname(abs), newName)
+        await fs.rename(abs, newPath)
+        file.path = newPath
+        file.filename = newName
+      }
+      return file
+    }
     if (isVideo) {
       await fs.unlink(abs).catch(() => {})
       const err = new Error('文件内容不是合法视频')

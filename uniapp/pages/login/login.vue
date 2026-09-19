@@ -100,7 +100,7 @@
 
       <view class="links">
         <text class="link-reg" @tap="goRegister">注册账号 ›</text>
-        <text class="link-hint">开发验证码：123456</text>
+        <text v-if="showDevCodeHint" class="link-hint">开发验证码：123456</text>
       </view>
     </view>
 
@@ -141,6 +141,7 @@ const wxLoading = ref(false)
 const errorTip = ref('')
 const agreed = ref(false)
 const mode = ref('wechat')
+const showDevCodeHint = import.meta.env.DEV
 const statusBarH = ref(20)
 const navBarH = ref(44)
 

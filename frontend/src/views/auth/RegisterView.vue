@@ -135,7 +135,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
@@ -148,7 +148,9 @@ const loading = ref(false)
 const countdown = ref(0)
 const errorTip = ref('')
 const regions = ref([])
-const form = ref({ phone: '', code: '123456', password: '', nickname: '', regionId: '', agreed: false })
+const isDev = import.meta.env.DEV
+const form = ref({ phone: '', code: isDev ? '123456' : '', password: '', nickname: '', regionId: '', agreed: false })
+let smsTimer = null
 const rules = {
   phone: [{ required: true, message: '请输入手机号' }],
   code: [{ required: true, message: '请输入验证码' }],
@@ -165,15 +167,33 @@ function onAgreeChange(checked) {
   if (checked) errorTip.value = ''
 }
 
+onUnmounted(() => {
+  if (smsTimer) clearInterval(smsTimer)
+})
+
 async function sendSms() {
   if (!form.value.phone) return ElMessage.warning('请先输入手机号')
-  await authApi.sendCode(form.value.phone)
-  ElMessage.success('验证码已发送（开发环境请填 123456，接口不再返回验证码）')
+  try {
+    await authApi.sendCode(form.value.phone)
+  } catch {
+    return
+  }
+  ElMessage.success(isDev ? '验证码已发送（开发环境请填 123456）' : '验证码已发送，请注意查收')
   countdown.value = 60
-  const t = setInterval(() => {
-    countdown.value--
-    if (countdown.value <= 0) clearInterval(t)
+  if (smsTimer) clearInterval(smsTimer)
+  smsTimer = setInterval(() => {
+    countdown.value -= 1
+    if (countdown.value <= 0) {
+      clearInterval(smsTimer)
+      smsTimer = null
+    }
   }, 1000)
+}
+
+function registerErrorMessage(err) {
+  const msg = err?.response?.data?.message || err?.message
+  if (msg && msg !== 'Network Error' && msg !== '请求失败') return msg
+  return '注册失败，请稍后重试'
 }
 
 async function handleRegister() {
@@ -189,9 +209,12 @@ async function handleRegister() {
   }
   loading.value = true
   try {
-    await auth.register(form.value)
+    const { phone, code, password, nickname, regionId } = form.value
+    await auth.register({ phone, code, password, nickname, regionId })
     ElMessage.success('注册成功')
     router.push('/')
+  } catch (err) {
+    errorTip.value = registerErrorMessage(err)
   } finally {
     loading.value = false
   }

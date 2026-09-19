@@ -80,7 +80,7 @@
         </p>
       </div>
 
-      <div class="test-block">
+      <div v-if="showTestAccounts" class="test-block">
         <div class="test-divider">
           <span>测试账号</span>
         </div>
@@ -114,6 +114,7 @@ const route = useRoute()
 const auth = useAuthStore()
 const formRef = ref()
 const loading = ref(false)
+const showTestAccounts = import.meta.env.DEV
 const errorTip = ref('')
 const agreed = ref(false)
 const form = ref({ phone: '', password: '' })
@@ -134,6 +135,13 @@ function onAgreeChange(checked) {
   if (checked && errorTip.value === '请先阅读并同意用户协议与隐私政策') {
     errorTip.value = ''
   }
+}
+
+function safeRedirect(raw, fallback) {
+  const value = Array.isArray(raw) ? raw[0] : raw
+  if (typeof value !== 'string') return fallback
+  if (!value.startsWith('/') || value.startsWith('//') || value.includes('\\')) return fallback
+  return value
 }
 
 function loginErrorMessage(err) {
@@ -157,8 +165,7 @@ async function handleLogin() {
   try {
     await auth.login(form.value)
     ElMessage.success('登录成功')
-    const redirect = route.query.redirect || auth.homePath
-    router.push(redirect)
+    router.push(safeRedirect(route.query.redirect, auth.homePath))
   } catch (err) {
     const msg = loginErrorMessage(err)
     errorTip.value = msg

@@ -5,10 +5,19 @@ export function notFoundHandler(req, res) {
   return fail(res, ErrorCodes.NOT_FOUND, `接口不存在: ${req.method} ${req.path}`, 404)
 }
 
+function limitFileSizeMessage(req, err) {
+  const url = `${req.baseUrl || ''}${req.path || ''}`
+  const field = err.field || ''
+  if (url.includes('/photo') || field === 'photo') return '证件照不超过 3MB'
+  if (url.includes('xlsx') || field === 'file') return '简历表格不超过 10MB'
+  if (url.includes('upload-video') || field === 'video') return '视频不超过 20MB'
+  return '商品图片单张不超过 15MB'
+}
+
 export function errorHandler(err, req, res, next) {
   logger.error(`${req.method} ${req.path} ${err.message}`, { stack: err.stack })
   if (err.code === 'LIMIT_FILE_SIZE') {
-    return fail(res, ErrorCodes.BAD_REQUEST, '文件过大：商品图片单张不超过 15MB，视频不超过 20MB', 400)
+    return fail(res, ErrorCodes.BAD_REQUEST, limitFileSizeMessage(req, err), 400)
   }
   if (err.name === 'ValidationError') {
     return fail(res, ErrorCodes.BAD_REQUEST, err.message, 400)

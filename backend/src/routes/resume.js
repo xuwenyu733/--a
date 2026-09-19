@@ -48,7 +48,10 @@ router.delete('/history/:id', validateParams(idParamSchema), resumeHistoryContro
 
 router.post('/photo', photoLimiter, (req, res, next) => {
   resumePhotoUpload(req, res, (err) => {
-    if (err) return fail(res, ErrorCodes.BAD_REQUEST, err.message)
+    if (err) {
+      const msg = err.code === 'LIMIT_FILE_SIZE' ? '证件照不超过 3MB' : err.message
+      return fail(res, ErrorCodes.BAD_REQUEST, msg)
+    }
     resumeGenerateController.uploadPhoto(req, res, next)
   })
 })
@@ -56,7 +59,10 @@ router.post('/generate', generateLimiter, validateBody(generateResumeSchema), re
 router.post('/export', validateBody(exportResumeSchema), resumeExportController.exportResume)
 router.post('/export-xlsx-pdf', (req, res, next) => {
   resumeXlsxUpload(req, res, (err) => {
-    if (err) return fail(res, ErrorCodes.BAD_REQUEST, err.message)
+    if (err) {
+      const msg = err.code === 'LIMIT_FILE_SIZE' ? '简历表格不超过 10MB' : err.message
+      return fail(res, ErrorCodes.BAD_REQUEST, msg)
+    }
     resumeExportController.exportXlsxAsPdf(req, res, next)
   })
 })
