@@ -55,3 +55,33 @@ export function uploadProductImages(filePaths) {
   return Promise.all(filePaths.map((fp) => uploadProductImage(fp).catch(() => null)))
     .then((results) => results.filter(Boolean))
 }
+
+export function uploadProductVideo(filePath, canRetry = true) {
+  const token = getAccessToken()
+  return new Promise((resolve, reject) => {
+    uni.uploadFile({
+      url: `${config.API_BASE}/products/upload-video`,
+      filePath,
+      name: 'video',
+      header: {
+        Authorization: token ? `Bearer ${token}` : '',
+        'X-Client': 'miniprogram',
+      },
+      success: (res) => {
+        const body = parseResponseBody(res.data)
+        if (canRetry && shouldRetryAuth(body, Boolean(token))) {
+          refreshAccessTokenOnce()
+            .then(() => uploadProductVideo(filePath, false).then(resolve).catch(reject))
+            .catch(() => handleSessionExpired(reject))
+          return
+        }
+        try {
+          resolve(parseUploadResponse(res))
+        } catch (e) {
+          reject(e)
+        }
+      },
+      fail: (err) => reject(new Error(err.errMsg || '视频上传失败')),
+    })
+  })
+}

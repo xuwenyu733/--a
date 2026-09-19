@@ -1,21 +1,29 @@
 <template>
   <view class="container page-with-footer" v-if="product">
-    <swiper v-if="images.length" class="gallery" indicator-dots circular>
-      <swiper-item v-for="(img, i) in images" :key="i">
+    <swiper v-if="gallerySlides.length" class="gallery" indicator-dots :circular="gallerySlides.length > 1">
+      <swiper-item v-for="(slide, i) in gallerySlides" :key="i">
         <image
+          v-if="slide.type === 'image'"
           class="gallery-img"
-          :src="img"
+          :src="slide.url"
           mode="aspectFill"
           :lazy-load="i > 0"
-          @tap="preview(img)"
+          @tap="preview(slide.url)"
+        />
+        <video
+          v-else
+          class="gallery-video"
+          :src="slide.url"
+          :poster="images[0] || ''"
+          object-fit="contain"
+          controls
+          :show-center-play-btn="true"
+          :enable-play-gesture="true"
+          :enable-progress-gesture="false"
         />
       </swiper-item>
     </swiper>
     <view v-else class="gallery empty">暂无图片</view>
-
-    <view v-if="videoUrl" class="video-wrap">
-      <video :src="videoUrl" class="video-player" controls />
-    </view>
 
     <view class="card">
       <view class="head-row">
@@ -126,7 +134,16 @@ import CartEntryBtn from '@/components/CartEntryBtn.vue'
 const product = ref(null)
 const shop = ref(null)
 const images = ref([])
-const videoUrl = computed(() => getFileUrl(product.value?.video))
+const videoUrl = computed(() => {
+  const p = product.value
+  const raw = (Array.isArray(p?.videos) && p.videos[0]) || p?.video || ''
+  return raw ? getFileUrl(raw) : ''
+})
+const gallerySlides = computed(() => {
+  const slides = images.value.map((url) => ({ type: 'image', url }))
+  if (videoUrl.value) slides.push({ type: 'video', url: videoUrl.value })
+  return slides
+})
 const favorited = ref(false)
 const loading = ref(true)
 const loadError = ref('')
@@ -332,11 +349,10 @@ async function buyNow() {
 </script>
 
 <style lang="scss" scoped>
-.gallery { height: 560rpx; border-radius: 16rpx; overflow: hidden; margin-bottom: 24rpx; }
+.gallery { height: 560rpx; border-radius: 16rpx; overflow: hidden; margin-bottom: 24rpx; background: #111; }
 .gallery.empty { background: #eef2f7; display: flex; align-items: center; justify-content: center; color: #909399; }
 .gallery-img { width: 100%; height: 560rpx; }
-.video-wrap { margin-bottom: 24rpx; border-radius: 16rpx; overflow: hidden; }
-.video-player { width: 100%; height: 360rpx; }
+.gallery-video { width: 100%; height: 560rpx; background: #000; }
 .head-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12rpx; }
 .title { display: block; font-size: 36rpx; font-weight: 600; line-height: 1.4; }
 .price { display: block; margin: 16rpx 0; color: #f56c6c; font-size: 40rpx; font-weight: 700; }

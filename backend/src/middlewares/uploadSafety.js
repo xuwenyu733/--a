@@ -108,15 +108,17 @@ export async function assertSafeUploadedFile(file) {
     return file
   }
 
-  if (isVideo) {
+  const mime = String(file.mimetype || '')
+  const maybeVideo = isVideo || !mime || mime === 'application/octet-stream'
+  if (maybeVideo) {
     const kind = detectVideoKind(buf)
-    if (!kind) {
+    if (kind) return file
+    if (isVideo) {
       await fs.unlink(abs).catch(() => {})
       const err = new Error('文件内容不是合法视频')
       err.code = 40000
       throw err
     }
-    return file
   }
 
   await fs.unlink(abs).catch(() => {})

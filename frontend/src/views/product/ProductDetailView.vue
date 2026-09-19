@@ -6,8 +6,8 @@
     <template v-if="product">
       <el-row :gutter="24">
         <el-col :xs="24" :md="12">
-          <el-carousel v-if="product.images?.length" height="360px">
-            <el-carousel-item v-for="(img, i) in product.images" :key="i">
+          <el-carousel v-if="hasGallery" height="360px" :autoplay="false">
+            <el-carousel-item v-for="(img, i) in product.images || []" :key="`img-${i}`">
               <img
                 :src="fileUrl(img)"
                 class="carousel-img"
@@ -16,14 +16,16 @@
                 :alt="`${product.title} 图片 ${i + 1}`"
               />
             </el-carousel-item>
+            <el-carousel-item v-if="product.videos?.length" key="video">
+              <video
+                :src="fileUrl(product.videos[0])"
+                :poster="product.images?.[0] ? fileUrl(product.images[0]) : ''"
+                controls
+                class="product-video"
+              />
+            </el-carousel-item>
           </el-carousel>
-          <div v-else-if="product.videos?.length" class="video-wrap">
-            <video :src="fileUrl(product.videos[0])" controls class="product-video" />
-          </div>
           <div v-else class="no-img">暂无图片</div>
-          <div v-if="product.images?.length && product.videos?.length" class="video-extra">
-            <video :src="fileUrl(product.videos[0])" controls class="product-video-sm" />
-          </div>
         </el-col>
         <el-col :xs="24" :md="12">
           <h1>{{ product.title }}</h1>
@@ -164,6 +166,7 @@ const orderDialogVisible = ref(false)
 const orderRemark = ref('')
 const buyQty = ref(1)
 const product = ref(null)
+const hasGallery = computed(() => (product.value?.images?.length || 0) + (product.value?.videos?.length || 0) > 0)
 const shop = ref(null)
 const favorited = ref(false)
 const reportVisible = ref(false)
@@ -303,10 +306,7 @@ onMounted(load)
 <style scoped>
 .detail-page { max-width: 1100px; margin: 0 auto; }
 .carousel-img { width: 100%; height: 360px; object-fit: contain; background: var(--app-border); }
-.video-wrap { height: 360px; background: #000; display: flex; align-items: center; justify-content: center; }
-.product-video { max-width: 100%; max-height: 360px; }
-.video-extra { margin-top: 12px; }
-.product-video-sm { width: 100%; max-height: 200px; border-radius: 8px; background: #000; }
+.product-video { width: 100%; height: 360px; background: #000; object-fit: contain; }
 .no-img { height: 360px; background: var(--app-border); display: flex; align-items: center; justify-content: center; color: var(--app-muted); }
 .price-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .price { color: #f56c6c; font-size: 28px; font-weight: 700; margin: 0; }

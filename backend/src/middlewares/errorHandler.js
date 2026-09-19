@@ -7,6 +7,9 @@ export function notFoundHandler(req, res) {
 
 export function errorHandler(err, req, res, next) {
   logger.error(`${req.method} ${req.path} ${err.message}`, { stack: err.stack })
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return fail(res, ErrorCodes.BAD_REQUEST, '文件过大：商品图片单张不超过 15MB，视频不超过 20MB', 400)
+  }
   if (err.name === 'ValidationError') {
     return fail(res, ErrorCodes.BAD_REQUEST, err.message, 400)
   }

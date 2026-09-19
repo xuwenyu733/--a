@@ -11,8 +11,11 @@ const fileFilter = (req, file, cb) => {
   }
 }
 
+/** 商品图单文件上限（手机原图常见 8～12MB） */
+export const PRODUCT_IMAGE_MAX_BYTES = 15 * 1024 * 1024
+
 export const uploadImages = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024, files: 9 },
+  limits: { fileSize: PRODUCT_IMAGE_MAX_BYTES, files: 9 },
 }).array('images', 9)

@@ -31,6 +31,7 @@
         <el-input v-model="form.location" placeholder="如：东区宿舍楼下" />
       </el-form-item>
       <el-form-item label="商品图片">
+        <p class="field-hint">最多 9 张；过大将自动压缩后上传</p>
         <el-upload
           list-type="picture-card"
           :file-list="fileList"
