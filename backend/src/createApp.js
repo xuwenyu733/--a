@@ -75,11 +75,29 @@ export function createApp(opts = {}) {
 
   if (prodStatic) {
     const clientDist = path.join(__dirname, '../../frontend/dist')
-    app.use(express.static(clientDist))
+    // 带 hash 的构建产物可长缓存；缺文件时不要回落到 index.html（否则 MIME 变成 text/html）
+    app.use(
+      express.static(clientDist, {
+        index: false,
+        setHeaders(res, filePath) {
+          if (filePath.endsWith('index.html')) {
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
+          } else if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+          }
+        },
+      })
+    )
     app.get('*', (req, res, next) => {
-      if (req.path.startsWith('/api') || req.path.startsWith('/uploads') || req.path.startsWith('/ws')) {
+      if (
+        req.path.startsWith('/api') ||
+        req.path.startsWith('/uploads') ||
+        req.path.startsWith('/ws') ||
+        req.path.startsWith('/assets/')
+      ) {
         return next()
       }
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
       res.sendFile(path.join(clientDist, 'index.html'))
     })
   }
