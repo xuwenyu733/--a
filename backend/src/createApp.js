@@ -39,6 +39,9 @@ export function createApp(opts = {}) {
           }
         : false,
       hsts: forceHttps,
+      // HTTP / 公网 IP 属于 untrustworthy origin，COOP/OAC 会被浏览器忽略并刷红字
+      crossOriginOpenerPolicy: forceHttps ? { policy: 'same-origin' } : false,
+      originAgentCluster: forceHttps,
       crossOriginResourcePolicy: { policy: 'cross-origin' },
     })
   )

@@ -13,12 +13,17 @@ function parseExpiresToMs(expiresIn) {
   return n * (multipliers[unit] || multipliers.d)
 }
 
+/** 仅在对外 HTTPS 时打 Secure；纯 HTTP（如公网 IP）打 Secure 会导致浏览器不存/不带 Cookie */
+function isHttpsPublic() {
+  return /^https:\/\//i.test(process.env.PUBLIC_BASE_URL || '')
+}
+
 function cookieBaseOptions() {
-  const isProd = process.env.NODE_ENV === 'production'
+  const https = isHttpsPublic()
   return {
     httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? 'Strict' : 'Lax',
+    secure: https,
+    sameSite: https ? 'Strict' : 'Lax',
     path: '/api',
   }
 }

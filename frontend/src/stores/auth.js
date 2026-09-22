@@ -89,6 +89,11 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  /** 无本地会话线索时不打 refresh，避免游客打开首页就刷 400 */
+  function hasSessionHint() {
+    return !!(refreshToken.value || user.value || sessionStorage.getItem('user'))
+  }
+
   async function restoreSession() {
     localStorage.removeItem('accessToken')
     if (accessToken.value) {
@@ -98,6 +103,10 @@ export const useAuthStore = defineStore('auth', () => {
       } catch {
         accessToken.value = ''
       }
+    }
+    if (!hasSessionHint()) {
+      logout()
+      return false
     }
     const ok = await tryRefreshSession()
     if (!ok) logout()

@@ -30,6 +30,24 @@ describe('authCookie', () => {
     expect(res.headers['Set-Cookie']).toContain('HttpOnly')
   })
 
+  it('HTTP PUBLIC_BASE_URL does not set Secure', () => {
+    const prev = process.env.PUBLIC_BASE_URL
+    process.env.PUBLIC_BASE_URL = 'http://111.230.138.241'
+    const res = { headers: {}, append(name, value) { this.headers[name] = value } }
+    setRefreshTokenCookie(res, 'token-xyz')
+    expect(res.headers['Set-Cookie']).not.toContain('Secure')
+    process.env.PUBLIC_BASE_URL = prev
+  })
+
+  it('HTTPS PUBLIC_BASE_URL sets Secure', () => {
+    const prev = process.env.PUBLIC_BASE_URL
+    process.env.PUBLIC_BASE_URL = 'https://xymarket.cn'
+    const res = { headers: {}, append(name, value) { this.headers[name] = value } }
+    setRefreshTokenCookie(res, 'token-xyz')
+    expect(res.headers['Set-Cookie']).toContain('Secure')
+    process.env.PUBLIC_BASE_URL = prev
+  })
+
   it('clearRefreshTokenCookie sets Max-Age=0', () => {
     const res = { headers: {}, append(name, value) { this.headers[name] = value } }
     clearRefreshTokenCookie(res)
