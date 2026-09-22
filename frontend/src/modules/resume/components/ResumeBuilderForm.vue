@@ -24,15 +24,57 @@ function clearFieldError(key) {
 
 function validateForm() {
   const errors = {}
+  Object.keys(fieldErrors).forEach((k) => delete fieldErrors[k])
+
   if (!store.builderForm.name?.trim()) {
     errors.name = '请填写姓名'
   }
-  if (!store.builderForm.phone?.trim() && !store.builderForm.email?.trim()) {
+
+  const phone = store.builderForm.phone?.trim() || ''
+  const email = store.builderForm.email?.trim() || ''
+  if (!phone && !email) {
     errors.phone = '请至少填写手机号或邮箱'
     errors.email = '请至少填写手机号或邮箱'
+  } else {
+    if (phone && !/^1\d{10}$/.test(phone)) {
+      errors.phone = '请输入正确的11位手机号'
+    }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.email = '邮箱格式不正确'
+    }
   }
+
+  const ageRaw = store.builderForm.age?.toString().trim()
+  if (ageRaw) {
+    const age = Number(ageRaw)
+    if (!/^\d{1,2}$/.test(ageRaw) || age < 15 || age > 60) {
+      errors.age = '年龄请填写 15～60'
+    }
+  }
+
   Object.assign(fieldErrors, errors)
   return Object.keys(errors).length === 0
+}
+
+async function handleGenerate() {
+  if (!validateForm()) {
+    const firstError = Object.values(fieldErrors)[0]
+    ElMessage.warning(firstError)
+    return
+  }
+  try {
+    await store.generateFromBuilder()
+    ElMessage.success('简历已生成')
+  } catch {
+    const code = store.errorCode
+    if (code === 40029 || code === 429) {
+      ElMessage.warning(store.error || '生成过于频繁，请 1 分钟后再试')
+    } else if (code === 50300 || code === 503 || code === 502) {
+      ElMessage.error(store.error || '简历服务暂不可用，请稍后重试')
+    } else {
+      ElMessage.error(store.error || '生成失败')
+    }
+  }
 }
 
 async function onPhotoChange(e) {
@@ -79,20 +121,6 @@ function addExperience() {
 
 function removeExperience(index) {
   store.builderForm.experiences.splice(index, 1)
-}
-
-async function handleGenerate() {
-  if (!validateForm()) {
-    const firstError = Object.values(fieldErrors)[0]
-    ElMessage.warning(firstError)
-    return
-  }
-  try {
-    await store.generateFromBuilder()
-    ElMessage.success('简历已生成')
-  } catch {
-    ElMessage.error(store.error || '生成失败')
-  }
 }
 </script>
 
@@ -153,13 +181,18 @@ async function handleGenerate() {
         </el-form-item>
 
         <div class="grid-2">
-          <el-form-item label="年龄">
-            <el-input v-model="store.builderForm.age" placeholder="22" />
+          <el-form-item label="年龄" :error="fieldErrors.age">
+            <el-input
+              v-model="store.builderForm.age"
+              placeholder="22"
+              @input="clearFieldError('age')"
+            />
           </el-form-item>
           <el-form-item label="手机号" required :error="fieldErrors.phone">
             <el-input
               v-model="store.builderForm.phone"
               placeholder="13800000000"
+              maxlength="11"
               @input="clearFieldError('phone'); clearFieldError('email')"
             />
           </el-form-item>
@@ -367,7 +400,18 @@ async function handleGenerate() {
       :closable="false"
       show-icon
       class="gen-hint"
-      title="AI 正在生成并适配 A4 单页，通常需 30～90 秒，请勿关闭页面"
+      :title="store.generatePhase || '正在生成…'"
+      description="通常需 30～90 秒（含 A4 适配），请勿关闭页面"
+    />
+    <el-progress
+      v-if="store.generating"
+      class="gen-progress"
+      :percentage="100"
+      :indeterminate="true"
+      :duration="8"
+      :stroke-width="4"
+      :show-text="false"
+      status="success"
     />
 
     <div class="actions">
@@ -459,6 +503,10 @@ async function handleGenerate() {
 
 .gen-hint {
   margin-top: 12px;
+}
+
+.gen-progress {
+  margin-top: 8px;
 }
 
 .actions {

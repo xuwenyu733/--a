@@ -85,7 +85,9 @@ onMounted(refresh)
       </li>
     </ul>
 
-    <p class="hint">登录后最多保留 50 条，生成成功将自动同步到 MongoDB。</p>
+    <p class="hint">
+      登录后最多保留 50 条；超出时自动淘汰最旧记录，并清理不再引用的证件照。生成成功将自动同步。
+    </p>
   </el-card>
 </template>
 

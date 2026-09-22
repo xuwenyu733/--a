@@ -1,10 +1,12 @@
 /** 校园市集 · 法律文案（与 docs/法律文本-隐私政策与用户协议.md 同步的精简可展示版） */
 export const LEGAL_META = {
   brand: '校园市集',
-  updatedAt: '2026-09-17',
+  updatedAt: '2026-09-22',
   operator: '甘南县码间软件开发工作室（个体工商户）',
   creditCode: '92230225MAKNH1384X',
   legalPerson: '徐文宇',
+  phone: '15663306313',
+  email: '2820485527@qq.com',
 }
 
 export const privacyDoc = {
@@ -33,7 +35,7 @@ export const privacyDoc = {
     },
     {
       heading: '6. 您的权利',
-      body: '在符合法律的前提下，您可申请查询、更正、删除个人信息，注销账号或撤回同意。请通过平台公示的联系方式提交申请。',
+      body: '在符合法律的前提下，您可申请查询、更正、删除个人信息，注销账号或撤回同意。请通过客服手机 15663306313 或邮箱 2820485527@qq.com 提交申请。',
     },
     {
       heading: '7. 未成年人',

@@ -44,7 +44,7 @@
       <div class="actions">
         <el-button type="primary" size="large" @click="$router.push('/products')">浏览商品</el-button>
         <el-button v-if="auth.isLoggedIn" size="large" type="warning" plain @click="goDelivery">校园跑腿</el-button>
-        <el-button v-if="auth.isLoggedIn" size="large" type="success" @click="goResumeBuild">简历创作</el-button>
+        <el-button v-if="auth.isLoggedIn" size="large" type="success" @click="goResumeBuild">AI 简历创作</el-button>
         <el-button v-if="canPublish" size="large" @click="goPublish">发布闲置</el-button>
         <el-button v-else-if="auth.isLoggedIn && auth.user?.role === 'student'" size="large" @click="$router.push('/user/verify/student')">去学生认证</el-button>
         <el-button v-else size="large" @click="$router.push('/register')">立即加入</el-button>

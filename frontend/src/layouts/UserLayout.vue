@@ -25,7 +25,7 @@
         <el-menu-item index="/products">商品</el-menu-item>
         <el-menu-item v-if="auth.isLoggedIn" index="/cart">购物车</el-menu-item>
         <el-menu-item v-if="auth.isLoggedIn" index="/delivery">校园跑腿</el-menu-item>
-        <el-menu-item v-if="auth.isLoggedIn" index="/resume/build">简历创作</el-menu-item>
+        <el-menu-item v-if="auth.isLoggedIn" index="/resume/build">AI 简历创作</el-menu-item>
         <el-menu-item v-if="auth.isLoggedIn" index="/chat">
           <el-badge :value="chatStore.totalUnread" :hidden="!chatStore.totalUnread" :max="99">消息</el-badge>
         </el-menu-item>
@@ -72,7 +72,7 @@
         <el-menu-item index="/products">商品</el-menu-item>
         <el-menu-item v-if="auth.isLoggedIn" index="/cart">购物车</el-menu-item>
         <el-menu-item v-if="auth.isLoggedIn" index="/delivery">校园跑腿</el-menu-item>
-        <el-menu-item v-if="auth.isLoggedIn" index="/resume/build">简历创作</el-menu-item>
+        <el-menu-item v-if="auth.isLoggedIn" index="/resume/build">AI 简历创作</el-menu-item>
         <el-menu-item v-if="auth.isLoggedIn" index="/chat">消息</el-menu-item>
         <el-menu-item v-if="auth.isLoggedIn" index="/notifications">通知</el-menu-item>
         <el-menu-item v-if="auth.isLoggedIn" index="/user">个人中心</el-menu-item>

@@ -22,10 +22,14 @@ api.interceptors.request.use((config) => {
 function unwrapResumeBody(body) {
   if (!body || typeof body !== 'object') return body
   if (body.success === false) {
-    throw new Error(body.message || '请求失败')
+    const err = new Error(body.message || '请求失败')
+    err.code = body.code
+    throw err
   }
   if (body.code !== undefined && body.code !== 0) {
-    throw new Error(body.message || '请求失败')
+    const err = new Error(body.message || '请求失败')
+    err.code = body.code
+    throw err
   }
   if (body.data !== undefined && (body.success === true || body.code === 0)) {
     return body.data
@@ -33,22 +37,36 @@ function unwrapResumeBody(body) {
   return body
 }
 
+function toResumeError(err) {
+  const status = err.response?.status
+  const body = err.response?.data
+  let message = body?.message || err.message || '请求失败'
+  if (typeof message === 'object' && message?.message) {
+    message = message.message
+  }
+  const code = body?.code ?? (typeof body?.message === 'object' ? body.message.code : undefined)
+
+  if (status === 401) {
+    clearAuthAndRedirect()
+    message = '登录已失效，请重新登录'
+  } else if (status === 429 || code === 40029) {
+    message = typeof message === 'string' && message ? message : 'AI 生成请求过于频繁，请 1 分钟后再试'
+  } else if (status === 502 || status === 503 || code === 50300) {
+    message = '简历服务暂不可用，请确认后端已启动且已配置 OPENAI_API_KEY'
+  }
+
+  const e = new Error(message)
+  e.code = code
+  e.status = status
+  return e
+}
+
 api.interceptors.response.use(
   (res) => unwrapResumeBody(res.data),
   async (err) => {
     const retried = await handleAuthError(err, err.config, (cfg) => api(cfg))
     if (retried !== null) return retried
-
-    const status = err.response?.status
-    let message = err.response?.data?.message || err.message || '请求失败'
-    if (status === 401) {
-      clearAuthAndRedirect()
-      message = '登录已失效，请重新登录'
-    }
-    if (status === 502 || status === 503) {
-      message = '简历服务暂不可用，请确认后端已启动且已配置 OPENAI_API_KEY'
-    }
-    return Promise.reject(new Error(message))
+    return Promise.reject(toResumeError(err))
   }
 )
 

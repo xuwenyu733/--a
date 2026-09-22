@@ -63,9 +63,15 @@ export const saveResumeRecordSchema = z.object({
 export const generateResumeSchema = z
   .object({
     name: z.string({ required_error: '请填写姓名' }).trim().min(1, '请填写姓名').max(50),
-    age: z.union([z.string(), z.number()]).optional(),
+    age: z
+      .union([z.string(), z.number()])
+      .optional()
+      .transform((v) => (v === undefined || v === null || v === '' ? undefined : String(v).trim()))
+      .refine((v) => v === undefined || (/^\d{1,2}$/.test(v) && Number(v) >= 15 && Number(v) <= 60), {
+        message: '年龄请填写 15～60 之间的数字',
+      }),
     phone: z.string().max(20).optional().default(''),
-    email: z.union([z.string().email('邮箱格式不正确'), z.literal('')]).optional().default(''),
+    email: z.string().max(100).optional().default(''),
     city: z.string().max(50).optional(),
     targetRole: z.string().max(100).optional(),
     summary: z.string().max(2000).optional(),
@@ -80,11 +86,27 @@ export const generateResumeSchema = z
     template: resumeTemplateSchema.optional().default('classic-green'),
   })
   .superRefine((data, ctx) => {
-    if (!data.phone?.trim() && !data.email?.trim()) {
+    const phone = data.phone?.trim() || ''
+    const email = data.email?.trim() || ''
+    if (!phone && !email) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: '请至少填写手机号或邮箱',
         path: ['phone'],
+      })
+    }
+    if (phone && !/^1\d{10}$/.test(phone)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '请输入正确的11位手机号',
+        path: ['phone'],
+      })
+    }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '邮箱格式不正确',
+        path: ['email'],
       })
     }
   })

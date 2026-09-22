@@ -85,18 +85,18 @@ function wrapTaggedParagraphs(body) {
   return body.replace(/<p>(\s*<strong>【[^】]+】<\/strong>[\s\S]*?)<\/p>/gi, '<p class="resume-tag-line">$1</p>')
 }
 
-/** ### 项目名 | 角色 | 时间 → 灰条三列 + 黑框正文 */
+/** ### 项目名 | 角色 | 时间 → 灰条三列；格式不符则整行标题，避免假分列 */
 function transformProjectHeadings(html) {
   if (html.includes('class="resume-project"')) return html
   return html.replace(
     /<h3>([^<]+)<\/h3>\s*([\s\S]*?)(?=<h3>|<h2>|$)/gi,
     (_, title, body) => {
-      const parts = stripTags(title)
-        .split('|')
-        .map((s) => s.trim())
-      const name = parts[0] || stripTags(title)
-      const role = parts[1] || '个人项目'
-      const date = parts[2] || ''
+      const raw = stripTags(title).trim()
+      const parts = raw.split('|').map((s) => s.trim())
+      const columnsOk = parts.length === 3 && parts.every((p) => p.length > 0)
+      const name = columnsOk ? parts[0] : raw
+      const role = columnsOk ? parts[1] : ''
+      const date = columnsOk ? parts[2] : ''
       const inner = wrapTaggedParagraphs(body.trim())
       return `<article class="resume-project"><div class="resume-project__bar">
         <span class="resume-project__name">${esc(name)}</span>

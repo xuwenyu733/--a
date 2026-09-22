@@ -7,6 +7,9 @@
         >运营方：{{ LEGAL_META.operator }} · {{ LEGAL_META.creditCode }} · 经营者
         {{ LEGAL_META.legalPerson }}</text
       >
+      <text class="meta"
+        >联系方式：{{ LEGAL_META.phone }} · {{ LEGAL_META.email }}</text
+      >
       <text class="meta">更新日期：{{ LEGAL_META.updatedAt }}</text>
 
       <view v-for="(s, i) in doc.sections" :key="i" class="section">

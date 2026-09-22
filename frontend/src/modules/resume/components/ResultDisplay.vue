@@ -31,6 +31,18 @@ const a4FillPercent = computed(() => {
   return Math.round(ratio * 100);
 });
 
+const a4Tag = computed(() => {
+  const m = store.a4Metrics;
+  if (!m) return null;
+  if (m.isOverflow || m.pages > 1) {
+    return { type: 'warning', text: `超出单页（约 ${m.pages} 页）` };
+  }
+  if (a4FillPercent.value != null) {
+    return { type: 'success', text: `A4 单页 · 版面 ${a4FillPercent.value}%` };
+  }
+  return { type: 'success', text: 'A4 单页' };
+});
+
 const formatLabels = {
   pdf: 'PDF',
   xlsx: 'Excel (.xlsx)',
@@ -76,8 +88,8 @@ async function handleExport() {
       <div class="card-header">
         <div class="card-header__title">
           <span>生成结果</span>
-          <el-tag v-if="a4FillPercent != null" size="small" type="success" class="a4-tag">
-            A4 单页 · 版面 {{ a4FillPercent }}%
+          <el-tag v-if="a4Tag" size="small" :type="a4Tag.type" class="a4-tag">
+            {{ a4Tag.text }}
           </el-tag>
         </div>
         <div v-if="showResult" class="header-actions">

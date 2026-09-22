@@ -1,5 +1,5 @@
 const SITE_NAME = '校园市集'
-const DEFAULT_DESC = '校园市集 — 二手交易、跑腿配送、简历优化，服务高校师生。'
+const DEFAULT_DESC = '校园市集 — 二手交易、跑腿配送、AI 简历创作，服务高校师生。'
 
 function setMetaTag(attr, key, content) {
   if (!content) return
@@ -39,7 +39,7 @@ export const PATH_TITLES = {
   '/user/verify/student': '学生认证',
   '/user/verify/merchant': '商家入驻',
   '/user/verify/courier': '骑手认证',
-  '/resume/build': 'AI 简历',
+  '/resume/build': 'AI 简历创作',
   '/delivery': '校园跑腿',
   '/delivery/post': '发布跑腿',
   '/delivery/hall': '接单大厅',

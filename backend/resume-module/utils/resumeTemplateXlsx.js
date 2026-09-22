@@ -172,14 +172,13 @@ function inlineBoldRuns(text, { size = SIZE_BODY, bold = false, colorArgb = null
 }
 
 function parseH3Title(text) {
-  const parts = String(text || '')
-    .split('|')
-    .map((s) => s.trim());
-  return {
-    name: parts[0] || String(text || ''),
-    role: parts[1] || '',
-    date: parts[2] || '',
-  };
+  const raw = String(text || '').trim();
+  const parts = raw.split('|').map((s) => s.trim());
+  // 必须恰好三列（两项竖线），否则整段降级为单格文本，避免表格错位
+  if (parts.length === 3 && parts.every((p) => p.length > 0)) {
+    return { name: parts[0], role: parts[1], date: parts[2], columnsOk: true };
+  }
+  return { name: raw, role: '', date: '', columnsOk: false };
 }
 
 function isCategoryLine(text) {
@@ -405,8 +404,16 @@ async function exportStyledXlsx(lines, templateId, photoUrl, content, builderDat
     }
 
     if (item.type === 'h3') {
-      const { name, role, date } = parseH3Title(item.text);
-      rowNum = renderGrayBar(ws, rowNum, { left: name, center: role, right: date });
+      const parsed = parseH3Title(item.text);
+      if (parsed.columnsOk) {
+        rowNum = renderGrayBar(ws, rowNum, {
+          left: parsed.name,
+          center: parsed.role,
+          right: parsed.date,
+        });
+      } else {
+        rowNum = renderGrayBar(ws, rowNum, { full: parsed.name });
+      }
       continue;
     }
 

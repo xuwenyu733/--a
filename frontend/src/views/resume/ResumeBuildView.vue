@@ -23,7 +23,7 @@ watch(() => route.path, (path) => {
 <template>
   <ResumePageShell
     title="AI 简历创作"
-    subtitle="填写个人信息与项目经历 → 一键生成 A4 单页简历 → 导出 PDF / Word"
+    subtitle="填写个人信息与项目经历 → 一键生成 A4 单页简历 → 导出 PDF / Excel"
   >
     <div class="workspace">
       <aside class="workspace__aside">

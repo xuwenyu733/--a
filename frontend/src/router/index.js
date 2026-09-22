@@ -64,6 +64,7 @@ const routes = [
         component: () => import('@/views/resume/ResumeBuildView.vue'),
         meta: { auth: true },
       },
+      // 旧「优化」入口：产品已收敛为「AI 简历创作」单入口，保留 redirect 兼容书签
       {
         path: 'resume/optimize',
         redirect: '/resume/build',

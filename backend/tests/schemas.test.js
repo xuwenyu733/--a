@@ -219,6 +219,21 @@ describe('resume schemas', () => {
     expect(generateResumeSchema.safeParse({ name: '张三' }).success).toBe(false)
   })
 
+  it('generateResumeSchema validates phone email and age', () => {
+    expect(
+      generateResumeSchema.safeParse({ name: '张三', phone: '1380000' }).success
+    ).toBe(false)
+    expect(
+      generateResumeSchema.safeParse({ name: '张三', email: 'bad' }).success
+    ).toBe(false)
+    expect(
+      generateResumeSchema.safeParse({ name: '张三', phone: '13800000001', age: 12 }).success
+    ).toBe(false)
+    expect(
+      generateResumeSchema.safeParse({ name: '张三', phone: '13800000001', age: 22 }).success
+    ).toBe(true)
+  })
+
   it('saveResumeRecordSchema requires optimizedContent', () => {
     expect(saveResumeRecordSchema.safeParse({ optimizedContent: '# 简历' }).success).toBe(true)
     expect(saveResumeRecordSchema.safeParse({ optimizedContent: '' }).success).toBe(false)

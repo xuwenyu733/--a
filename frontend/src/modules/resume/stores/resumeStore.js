@@ -29,10 +29,39 @@ export const useResumeStore = defineStore('resume', () => {
     style: normalizeResumeStyle(saved?.builderForm?.style || saved?.style),
   })
   const generating = ref(false)
+  const generatePhase = ref('')
   const saving = ref(false)
   const error = ref('')
+  const errorCode = ref(null)
   const currentRecordId = ref(saved?.currentRecordId || '')
   const historyList = ref([])
+
+  const GENERATE_PHASES = [
+    { at: 0, text: '正在提交表单…' },
+    { at: 2500, text: 'AI 正在撰写简历…' },
+    { at: 20000, text: '正在适配 A4 单页…' },
+    { at: 60000, text: '仍在生成中，请稍候…' },
+  ]
+
+  let phaseTimers = []
+
+  function clearGeneratePhases() {
+    phaseTimers.forEach((t) => clearTimeout(t))
+    phaseTimers = []
+    generatePhase.value = ''
+  }
+
+  function startGeneratePhases() {
+    clearGeneratePhases()
+    generatePhase.value = GENERATE_PHASES[0].text
+    for (const p of GENERATE_PHASES.slice(1)) {
+      phaseTimers.push(
+        setTimeout(() => {
+          if (generating.value) generatePhase.value = p.text
+        }, p.at)
+      )
+    }
+  }
 
   function snapshotPayload() {
     return {
@@ -77,6 +106,7 @@ export const useResumeStore = defineStore('resume', () => {
 
   function clearError() {
     error.value = ''
+    errorCode.value = null
   }
 
   function prepareBuilderPage() {
@@ -141,6 +171,7 @@ export const useResumeStore = defineStore('resume', () => {
   async function generateFromBuilder() {
     generating.value = true
     clearError()
+    startGeneratePhases()
     try {
       const form = { ...builderForm.value }
       const data = await generateResumeFromForm(form)
@@ -152,6 +183,12 @@ export const useResumeStore = defineStore('resume', () => {
         throw new Error('AI 未返回有效简历内容，请重试')
       }
       suggestions.value = data.suggestions || []
+      if (data.a4Adjusted) {
+        suggestions.value = [
+          ...suggestions.value,
+          '已自动微调内容以尽量适配 A4 单页',
+        ]
+      }
       a4Metrics.value = data.a4Metrics || null
       jobDescription.value = form.jobDescription || ''
       style.value = normalizeResumeStyle(form.style)
@@ -160,8 +197,10 @@ export const useResumeStore = defineStore('resume', () => {
       await saveToCloud()
     } catch (e) {
       error.value = e.message
+      errorCode.value = e.code ?? e.status ?? null
       throw e
     } finally {
+      clearGeneratePhases()
       generating.value = false
     }
   }
@@ -192,8 +231,10 @@ export const useResumeStore = defineStore('resume', () => {
     sourceType,
     builderForm,
     generating,
+    generatePhase,
     saving,
     error,
+    errorCode,
     currentRecordId,
     historyList,
     generateFromBuilder,

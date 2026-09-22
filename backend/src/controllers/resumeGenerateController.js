@@ -9,6 +9,7 @@ import { resumeReq } from '../utils/resumeModule.js'
 import { ErrorCodes, fail, success } from '../utils/response.js'
 
 const { optimizeResume } = resumeReq('./services/aiService.js')
+const { fitContentToA4 } = resumeReq('./services/a4FitService.js')
 const { buildHeaderMetaFromForm, normalizeResumeHeader } = resumeReq('./utils/normalizeResumeHeader.js')
 const { clientMessage } = resumeReq('./utils/safeError.js')
 const { measurePdfLayout } = resumeReq('./services/exportService.js')
@@ -45,6 +46,7 @@ export async function generateFromForm(req, res, next) {
 
     let optimizedContent = result.optimizedContent
     const suggestions = result.suggestions || []
+    const templateId = body.template || 'classic-green'
 
     const headerMeta = buildHeaderMetaFromForm({ ...body, photoUrl })
     if (headerMeta) {
@@ -55,14 +57,24 @@ export async function generateFromForm(req, res, next) {
       optimizedContent = ensurePhotoInMarkdown(optimizedContent, photoUrl)
     }
 
+    let a4Adjusted = false
     let a4Metrics = null
     try {
-      const layout = await measurePdfLayout(
-        optimizedContent,
-        undefined,
-        body.template || 'classic-green',
-        photoUrl
-      )
+      const fitted = await fitContentToA4(optimizedContent, { templateId, photoUrl })
+      optimizedContent = fitted.content
+      a4Adjusted = Boolean(fitted.a4Adjusted)
+      if (headerMeta) {
+        optimizedContent = normalizeResumeHeader(optimizedContent, headerMeta)
+      }
+      if (photoUrl) {
+        optimizedContent = ensurePhotoInMarkdown(optimizedContent, photoUrl)
+      }
+    } catch (fitErr) {
+      console.warn('A4 fit skipped:', fitErr.message)
+    }
+
+    try {
+      const layout = await measurePdfLayout(optimizedContent, undefined, templateId, photoUrl)
       a4Metrics = {
         fontSize: layout.fontSize,
         pages: layout.pages,
@@ -78,13 +90,17 @@ export async function generateFromForm(req, res, next) {
       optimizedContent,
       suggestions,
       a4Metrics,
+      a4Adjusted,
       draft,
       builderData: body,
     })
   } catch (err) {
-    return res.status(500).json({
-      code: 50000,
-      message: clientMessage(err, 'AI 生成失败，请检查 API 配置'),
+    const msg = clientMessage(err, 'AI 生成失败，请检查 API 配置')
+    const isConfig =
+      /API[_\s-]?KEY|未配置|OPENAI|服务未就绪|暂不可用/i.test(String(err?.message || msg))
+    return res.status(isConfig ? 503 : 500).json({
+      code: isConfig ? 50300 : 50000,
+      message: msg,
       data: null,
     })
   }
