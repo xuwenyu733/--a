@@ -7,7 +7,7 @@
  */
 // 微信开发者工具加载图片时，localhost 比 127.0.0.1 更稳定
 const DEV_HOST = 'localhost:3001'
-const PROD_HOST = 'your-domain.com' // 上线前替换
+const PROD_HOST = 'xymarket.cn'
 
 const apiHost = import.meta.env.VITE_API_HOST
 const useProd = import.meta.env.VITE_USE_PROD_API === 'true'

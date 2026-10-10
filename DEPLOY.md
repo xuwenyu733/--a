@@ -189,7 +189,7 @@ sudo systemctl reload nginx
 
 ```bash
 sudo apt install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d your-domain.com
+sudo certbot --nginx -d xymarket.cn -d www.xymarket.cn
 ```
 
 Certbot 会自动修改 Nginx 并配置证书续期。配置完成后 WebSocket 使用 `wss://`（前端已按 `location.protocol` 自动切换）。
