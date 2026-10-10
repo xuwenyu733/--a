@@ -79,6 +79,12 @@ export function createApp(opts = {}) {
     setPublicBaseUrl(envBase || (host ? `${proto}://${host}` : ''))
     next()
   })
+  // 微信支付回调为 text/xml，须在 json 解析之前按路径接收原文
+  const wechatNotifyPaths = ['/api/v1/payments/notify/wechat', '/api/payments/notify/wechat']
+  app.use(
+    wechatNotifyPaths,
+    express.text({ type: ['text/*', 'application/xml', '*/xml'], limit: '1mb' })
+  )
   app.use(express.json({ limit: '2mb' }))
   app.use(express.urlencoded({ extended: true, limit: '2mb' }))
   app.use(

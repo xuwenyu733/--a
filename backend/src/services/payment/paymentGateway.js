@@ -1,6 +1,13 @@
 import crypto from 'crypto'
 import config from '../../config/index.js'
 import { PAYMENT_CHANNEL, PAYMENT_PROVIDER } from '../../constants/payment.js'
+import {
+  assertCertFilesOptional,
+  buildJsapiPayParams,
+  unifiedOrderJsapi,
+  verifyWechatPayNotify,
+  yuanToFen,
+} from './wechatPayV2.js'
 
 /**
  * 支付网关抽象：
@@ -55,39 +62,61 @@ function createSandboxGateway(channel) {
 }
 
 /**
- * 正式微信支付占位：商户号与域名就绪后在此接入 JSAPI/小程序下单。
- * createPrepay 应返回 payParams 供小程序 requestPayment。
+ * 正式微信支付：APIv2 统一下单（JSAPI）+ 回调验签。
+ * createPrepay 返回 payParams 供小程序 uni.requestPayment。
  */
 function createLiveWechatGateway() {
+  const wc = config.payment.wechat
   return {
     provider: PAYMENT_PROVIDER.WECHAT,
-    async createPrepay({ paymentNo, amount, title, openid, expireAt }) {
+    async createPrepay({ paymentNo, amount, title, openid, expireAt, clientIp }) {
       if (!openid) {
         const err = new Error('微信支付需要微信登录（缺少 openid），请使用微信一键登录后再支付')
         err.code = 40000
         throw err
       }
-      // TODO: 接入微信支付统一下单（JSAPI），使用：
-      // config.payment.wechat.{appId,mchId,apiKey,certPath,keyPath}
-      // notifyUrl: notifyUrl(PAYMENT_CHANNEL.WECHAT)
-      // 成功后返回：
-      // {
-      //   prepayId, payParams: { timeStamp, nonceStr, package, signType, paySign },
-      //   clientAction: 'requestPayment', notifyUrl, transactionId: null
-      // }
-      void paymentNo
-      void amount
-      void title
-      void expireAt
-      const err = new Error(
-        '微信支付 live 模式待接入：请配置商户密钥并实现 paymentGateway.createLiveWechatGateway（需公网 HTTPS 回调）'
-      )
-      err.code = 50100
-      throw err
+      if (!wc.appId || !wc.mchId || !wc.apiKey) {
+        const err = new Error('微信支付未配置完整（AppID / 商户号 / API 密钥）')
+        err.code = 50000
+        throw err
+      }
+      if (!isNotifyDomainReady()) {
+        const err = new Error('正式支付需要公网 HTTPS 回调域名，请配置 PAYMENT_NOTIFY_BASE_URL 或 PUBLIC_BASE_URL')
+        err.code = 50000
+        throw err
+      }
+      assertCertFilesOptional(wc.certPath, wc.keyPath)
+
+      const notify = notifyUrl(PAYMENT_CHANNEL.WECHAT)
+      const { prepayId } = await unifiedOrderJsapi({
+        appId: wc.appId,
+        mchId: wc.mchId,
+        apiKey: wc.apiKey,
+        openid,
+        paymentNo,
+        body: title || '校园市集商品',
+        totalFeeFen: yuanToFen(amount),
+        notifyUrl: notify,
+        clientIp: clientIp || '127.0.0.1',
+        expireAt,
+      })
+      const payParams = buildJsapiPayParams({
+        appId: wc.appId,
+        prepayId,
+        apiKey: wc.apiKey,
+      })
+      return {
+        prepayId,
+        payUrl: null,
+        qrContent: null,
+        payParams,
+        clientAction: 'requestPayment',
+        notifyUrl: notify,
+        transactionId: null,
+      }
     },
-    verifyNotify() {
-      // TODO: 验签微信支付回调
-      return { valid: false, paymentNo: null, transactionId: null }
+    verifyNotify(body) {
+      return verifyWechatPayNotify(body, wc.apiKey)
     },
   }
 }

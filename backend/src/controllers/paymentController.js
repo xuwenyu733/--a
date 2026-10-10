@@ -78,9 +78,18 @@ export async function simulatePay(req, res, next) {
 }
 
 export async function notifyWechat(req, res) {
-  const result = await paymentService.handlePaymentNotify('wechat', req.body)
-  if (result.ok) return res.send('<xml><return_code><![CDATA[SUCCESS]]></return_code></xml>')
-  return res.status(400).send('FAIL')
+  // express.text 得到字符串；若被其他中间件解析则可能是对象
+  const body = typeof req.body === 'string' ? req.body : req.body
+  const result = await paymentService.handlePaymentNotify('wechat', body)
+  if (result.ok) {
+    return res
+      .type('application/xml')
+      .send('<xml><return_code><![CDATA[SUCCESS]]></return_code><return_msg><![CDATA[OK]]></return_msg></xml>')
+  }
+  return res
+    .status(400)
+    .type('application/xml')
+    .send('<xml><return_code><![CDATA[FAIL]]></return_code><return_msg><![CDATA[FAIL]]></return_msg></xml>')
 }
 
 export async function notifyAlipay(req, res) {
