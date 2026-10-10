@@ -21,6 +21,7 @@
         <router-link :to="other.path">{{ other.title }}</router-link>
         <span class="sep">·</span>
         <router-link to="/">回首页</router-link>
+        <BeianFooter compact />
       </footer>
     </article>
   </div>
@@ -29,6 +30,7 @@
 <script setup>
 import { computed } from 'vue'
 import { LEGAL_META, privacyDoc, termsDoc } from '@/content/legal'
+import BeianFooter from '@/components/BeianFooter.vue'
 
 const props = defineProps({
   kind: { type: String, required: true },

@@ -84,10 +84,13 @@
     </el-main>
 
     <el-footer class="site-footer" height="auto">
-      <router-link to="/terms">用户协议</router-link>
-      <span class="sep">·</span>
-      <router-link to="/privacy">隐私政策</router-link>
-      <span class="muted">校园市集</span>
+      <div class="footer-links">
+        <router-link to="/terms">用户协议</router-link>
+        <span class="sep">·</span>
+        <router-link to="/privacy">隐私政策</router-link>
+        <span class="muted">校园市集</span>
+      </div>
+      <BeianFooter />
     </el-footer>
   </el-container>
 </template>
@@ -104,6 +107,7 @@ import { WS_EVENTS } from '@/constants/wsEvents'
 import { useRouter } from 'vue-router'
 import * as authApi from '@/api/auth'
 import { getFileUrl } from '@/utils/fileUrl'
+import BeianFooter from '@/components/BeianFooter.vue'
 
 const auth = useAuthStore()
 const { isDark, toggle: toggleDark } = useDarkMode()
@@ -187,6 +191,7 @@ async function handleLogout() {
 .main-content { padding: 12px 16px; flex: 1; }
 .site-footer {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 8px;
@@ -194,6 +199,12 @@ async function handleLogout() {
   font-size: 13px;
   border-top: 1px solid #eee;
   background: transparent;
+}
+.footer-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 .site-footer a { color: #409eff; text-decoration: none; }
 .site-footer a:hover { text-decoration: underline; }

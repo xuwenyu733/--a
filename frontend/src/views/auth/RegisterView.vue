@@ -130,6 +130,7 @@
       </el-form>
 
       <p class="tip">已有账号？<router-link to="/login">去登录</router-link></p>
+      <BeianFooter compact />
     </div>
   </div>
 </template>
@@ -140,6 +141,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import * as authApi from '@/api/auth'
+import BeianFooter from '@/components/BeianFooter.vue'
 
 const router = useRouter()
 const auth = useAuthStore()

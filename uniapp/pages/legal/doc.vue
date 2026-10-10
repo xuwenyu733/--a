@@ -19,6 +19,16 @@
 
       <view class="footer-links">
         <text class="link" @tap="openOther">查看{{ other.title }}</text>
+        <text
+          v-if="LEGAL_META.icpNumber"
+          class="beian"
+          @tap="openIcp"
+        >{{ LEGAL_META.icpNumber }}</text>
+        <text
+          v-if="LEGAL_META.policeNumber"
+          class="beian"
+          @tap="openPolice"
+        >{{ LEGAL_META.policeNumber }}</text>
       </view>
     </view>
   </scroll-view>
@@ -40,6 +50,26 @@ onLoad((query) => {
 
 function openOther() {
   uni.redirectTo({ url: `/pages/legal/doc?kind=${other.value.kind}` })
+}
+
+function openIcp() {
+  openBeianUrl(LEGAL_META.icpUrl || 'https://beian.miit.gov.cn/')
+}
+
+function openPolice() {
+  openBeianUrl(LEGAL_META.policeUrl || 'https://beian.mps.gov.cn/#/query/webSearch')
+}
+
+function openBeianUrl(url) {
+  // #ifdef H5
+  window.open(url, '_blank')
+  // #endif
+  // #ifndef H5
+  uni.setClipboardData({
+    data: url,
+    success: () => uni.showToast({ title: '备案查询链接已复制', icon: 'none' }),
+  })
+  // #endif
 }
 </script>
 
@@ -97,6 +127,12 @@ function openOther() {
   padding-top: 24rpx;
   border-top: 1rpx solid #ebeef5;
   text-align: center;
+}
+.beian {
+  display: block;
+  margin-top: 16rpx;
+  font-size: 22rpx;
+  color: #909399;
 }
 .link {
   font-size: 28rpx;

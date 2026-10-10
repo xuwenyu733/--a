@@ -7,6 +7,10 @@ export const LEGAL_META = {
   legalPerson: '徐文宇',
   phone: '15663306313',
   email: '2820485527@qq.com',
+  icpNumber: '黑ICP备2026011762号-2',
+  icpUrl: 'https://beian.miit.gov.cn/',
+  policeNumber: '黑公网安备23022502000038号',
+  policeUrl: 'https://beian.mps.gov.cn/#/query/webSearch',
 }
 
 export const privacyDoc = {
