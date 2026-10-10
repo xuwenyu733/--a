@@ -35,6 +35,27 @@ export function createApp(opts = {}) {
             useDefaults: true,
             directives: {
               upgradeInsecureRequests: forceHttps ? [] : null,
+              // www 与裸域并存时，上传图可能是另一主机的绝对 URL
+              imgSrc: [
+                "'self'",
+                'data:',
+                'blob:',
+                'https://xymarket.cn',
+                'https://www.xymarket.cn',
+              ],
+              mediaSrc: [
+                "'self'",
+                'blob:',
+                'https://xymarket.cn',
+                'https://www.xymarket.cn',
+              ],
+              connectSrc: [
+                "'self'",
+                'https://xymarket.cn',
+                'https://www.xymarket.cn',
+                'wss://xymarket.cn',
+                'wss://www.xymarket.cn',
+              ],
             },
           }
         : false,
