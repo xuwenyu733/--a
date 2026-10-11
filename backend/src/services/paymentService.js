@@ -130,8 +130,6 @@ export async function createOnlinePayment(orderId, buyerId, { channel, scene } =
     throw err
   }
 
-  const payScene = scene === 'native' ? 'native' : 'jsapi'
-
   await expireStalePendingPayments(orderId)
 
   const existing = await PaymentTransaction.findOne({
@@ -161,10 +159,19 @@ export async function createOnlinePayment(orderId, buyerId, { channel, scene } =
   const buyer = await User.findById(buyerId).select('wechatOpenId')
   const openid = buyer?.wechatOpenId || ''
 
+  // PC 明确传 native；未传 scene 且无 openid 时也走扫码，避免网页端误走 JSAPI
+  let payScene = scene === 'native' ? 'native' : scene === 'jsapi' ? 'jsapi' : ''
+  if (!payScene) {
+    payScene =
+      channel === PAYMENT_CHANNEL.WECHAT && config.payment.mode === 'live' && !openid
+        ? 'native'
+        : 'jsapi'
+  }
+
   if (
     channel === PAYMENT_CHANNEL.WECHAT &&
     config.payment.mode === 'live' &&
-    payScene !== 'native' &&
+    payScene === 'jsapi' &&
     !openid
   ) {
     const err = new Error('请先使用微信登录后再发起微信支付')

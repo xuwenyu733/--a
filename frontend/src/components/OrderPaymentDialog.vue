@@ -238,10 +238,10 @@ async function createPayment() {
   if (!props.order?._id || !channel.value) return
   creating.value = true
   try {
-    const payload = { channel: channel.value }
-    // PC 网页：微信走 Native 扫码；沙箱仍可模拟
-    if (channel.value === 'wechat' && paymentConfig.value.mode === 'live') {
-      payload.scene = 'native'
+    // PC 网页微信一律走 Native 扫码（沙箱后端会忽略并仍可模拟）
+    const payload = {
+      channel: channel.value,
+      ...(channel.value === 'wechat' ? { scene: 'native' } : {}),
     }
     const res = await paymentApi.createOrderPayment(props.order._id, payload)
     await applyPaymentResult(res)
