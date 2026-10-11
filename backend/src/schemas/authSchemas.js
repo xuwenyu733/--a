@@ -10,6 +10,11 @@ export const loginSchema = z.object({
   password: z.string({ required_error: '请输入密码' }).min(1, '请输入密码'),
 })
 
+export const loginByCodeSchema = z.object({
+  phone,
+  code: z.string({ required_error: '请输入验证码' }).trim().min(1, '请输入验证码'),
+})
+
 export const registerSchema = z.object({
   phone,
   password: z
@@ -33,6 +38,7 @@ export const changePasswordSchema = z.object({
 
 export const sendCodeSchema = z.object({
   phone,
+  purpose: z.enum(['register', 'login']).optional(),
 })
 
 export const wechatLoginSchema = z.object({

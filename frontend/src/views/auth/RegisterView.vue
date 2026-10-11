@@ -176,7 +176,7 @@ onUnmounted(() => {
 async function sendSms() {
   if (!form.value.phone) return ElMessage.warning('请先输入手机号')
   try {
-    await authApi.sendCode(form.value.phone)
+    await authApi.sendCode(form.value.phone, 'register')
   } catch {
     return
   }

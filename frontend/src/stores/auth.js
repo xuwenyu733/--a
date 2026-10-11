@@ -49,6 +49,12 @@ export const useAuthStore = defineStore('auth', () => {
     return data
   }
 
+  async function loginByCode(credentials) {
+    const data = await authApi.loginByCode(credentials)
+    setTokens({ accessToken: data.accessToken, user: data.user })
+    return data
+  }
+
   async function register(payload) {
     const data = await authApi.register(payload)
     setTokens({ accessToken: data.accessToken, user: data.user })
@@ -124,6 +130,7 @@ export const useAuthStore = defineStore('auth', () => {
     setTokens,
     logout,
     login,
+    loginByCode,
     register,
     fetchMe,
     changePassword,

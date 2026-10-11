@@ -32,6 +32,18 @@
       </view>
 
       <view v-if="mode === 'phone'" class="fields">
+        <view class="sub-tabs">
+          <text
+            class="sub-tab"
+            :class="{ active: phoneMode === 'password' }"
+            @tap="phoneMode = 'password'"
+          >密码登录</text>
+          <text
+            class="sub-tab"
+            :class="{ active: phoneMode === 'code' }"
+            @tap="phoneMode = 'code'"
+          >验证码登录</text>
+        </view>
         <view class="field">
           <image class="field-ico" :src="IMG.phone" mode="aspectFit" />
           <input
@@ -44,7 +56,7 @@
             @input="onPhoneInput"
           />
         </view>
-        <view class="field">
+        <view v-if="phoneMode === 'password'" class="field">
           <image class="field-ico" :src="IMG.lock" mode="aspectFit" />
           <input
             class="field-input"
@@ -60,6 +72,25 @@
               :src="showPassword ? IMG.eye : IMG.eyeOff"
               mode="aspectFit"
             />
+          </view>
+        </view>
+        <view v-else class="field code-field">
+          <image class="field-ico" :src="IMG.lock" mode="aspectFit" />
+          <input
+            class="field-input"
+            type="number"
+            maxlength="6"
+            placeholder="请输入验证码"
+            placeholder-class="ph"
+            :value="smsCode"
+            @input="onSmsCodeInput"
+          />
+          <view
+            class="code-btn"
+            :class="{ disabled: countdown > 0 || sendingCode }"
+            @tap="sendSms"
+          >
+            <text>{{ countdown > 0 ? countdown + 's' : '获取验证码' }}</text>
           </view>
         </view>
       </view>
@@ -115,7 +146,12 @@
 <script setup>
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { login as loginApi, wechatLogin as wechatLoginApi } from '@/api/auth'
+import {
+  login as loginApi,
+  loginByCode as loginByCodeApi,
+  sendCode as sendCodeApi,
+  wechatLogin as wechatLoginApi,
+} from '@/api/auth'
 import { saveSession } from '@/utils/auth'
 import { onSessionReady } from '@/utils/unread'
 import { getWxLoginCode } from '@/utils/wechat'
@@ -135,12 +171,17 @@ const IMG = {
 
 const phone = ref('')
 const password = ref('')
+const smsCode = ref('')
 const showPassword = ref(false)
 const loading = ref(false)
 const wxLoading = ref(false)
+const sendingCode = ref(false)
+const countdown = ref(0)
+let countdownTimer = null
 const errorTip = ref('')
 const agreed = ref(false)
 const mode = ref('wechat')
+const phoneMode = ref('password')
 const showDevCodeHint = import.meta.env.DEV
 const statusBarH = ref(20)
 const navBarH = ref(44)
@@ -193,8 +234,44 @@ function onPasswordInput(e) {
   errorTip.value = ''
 }
 
+function onSmsCodeInput(e) {
+  smsCode.value = e.detail.value
+  errorTip.value = ''
+}
+
 function togglePassword() {
   showPassword.value = !showPassword.value
+}
+
+function startCountdown(seconds) {
+  countdown.value = seconds
+  if (countdownTimer) clearInterval(countdownTimer)
+  countdownTimer = setInterval(() => {
+    countdown.value -= 1
+    if (countdown.value <= 0) {
+      clearInterval(countdownTimer)
+      countdownTimer = null
+    }
+  }, 1000)
+}
+
+async function sendSms() {
+  if (countdown.value > 0 || sendingCode.value) return
+  const p = String(phone.value || '').trim()
+  if (!/^1\d{10}$/.test(p)) {
+    showError('请输入正确的11位手机号')
+    return
+  }
+  sendingCode.value = true
+  try {
+    const res = await sendCodeApi(p, 'login')
+    uni.showToast({ title: '验证码已发送', icon: 'none' })
+    startCountdown(60)
+  } catch (e) {
+    showError(e.message || '发送失败')
+  } finally {
+    sendingCode.value = false
+  }
 }
 
 function showError(msg) {
@@ -237,6 +314,7 @@ async function wechatLogin() {
 async function submit() {
   const p = String(phone.value || '').trim()
   const pwd = String(password.value || '')
+  const code = String(smsCode.value || '').trim()
   if (!p) {
     showError('请输入手机号')
     return
@@ -245,7 +323,12 @@ async function submit() {
     showError('请输入正确的11位手机号')
     return
   }
-  if (!pwd) {
+  if (phoneMode.value === 'code') {
+    if (!code) {
+      showError('请输入验证码')
+      return
+    }
+  } else if (!pwd) {
     showError('请输入密码')
     return
   }
@@ -253,7 +336,10 @@ async function submit() {
   loading.value = true
   errorTip.value = ''
   try {
-    const data = await loginApi({ phone: p, password: pwd })
+    const data =
+      phoneMode.value === 'code'
+        ? await loginByCodeApi({ phone: p, code })
+        : await loginApi({ phone: p, password: pwd })
     saveSession(data)
     onSessionReady()
     uni.showToast({ title: '登录成功', icon: 'success' })
@@ -419,6 +505,39 @@ function goRegister() {
   background: #3a91f7;
 }
 
+.sub-tabs {
+  display: flex;
+  gap: 24rpx;
+  margin-bottom: 8rpx;
+  padding: 0 8rpx;
+}
+.sub-tab {
+  font-size: 26rpx;
+  color: #8aa0b8;
+  padding: 8rpx 0;
+}
+.sub-tab.active {
+  color: #2f7ff0;
+  font-weight: 600;
+  border-bottom: 4rpx solid #2f7ff0;
+}
+.code-field {
+  padding-right: 8rpx;
+}
+.code-btn {
+  flex-shrink: 0;
+  padding: 0 16rpx;
+  height: 56rpx;
+  line-height: 56rpx;
+  border-radius: 12rpx;
+  background: #2f7ff0;
+  color: #fff;
+  font-size: 22rpx;
+  margin-left: 12rpx;
+}
+.code-btn.disabled {
+  opacity: 0.5;
+}
 .fields {
   display: flex;
   flex-direction: column;

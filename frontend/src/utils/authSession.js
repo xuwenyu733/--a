@@ -11,7 +11,7 @@ function shouldTryRefresh(error, config) {
   if (!config?.headers?.Authorization) return false
   const url = config.url || ''
   // 登录/注册本身的失败不应触发 token 刷新
-  if (/\/auth\/(login|register|wechat-login|send-code)/.test(url)) return false
+  if (/\/auth\/(login|login-by-code|register|wechat-login|send-code)/.test(url)) return false
   const code = error.response?.data?.code
   return code === 40101 || code === 40100
 }

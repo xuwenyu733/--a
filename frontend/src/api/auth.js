@@ -1,8 +1,10 @@
 import request from '@/utils/request'
 
-export const sendCode = (phone) => request.post('/auth/send-code', { phone })
+export const sendCode = (phone, purpose) =>
+  request.post('/auth/send-code', purpose ? { phone, purpose } : { phone })
 export const register = (data) => request.post('/auth/register', data)
 export const login = (data) => request.post('/auth/login', data)
+export const loginByCode = (data) => request.post('/auth/login-by-code', data)
 export const logout = () => request.post('/auth/logout')
 export const getMe = () => request.get('/auth/me')
 export const changePassword = (data) => request.post('/auth/change-password', data)

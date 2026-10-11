@@ -86,7 +86,7 @@ async function sendVerifyCode() {
   }
   if (countdown.value > 0) return
   try {
-    await sendCodeApi(phone.value)
+    await sendCodeApi(phone.value, 'register')
     uni.showToast({ title: '验证码已发送', icon: 'success' })
     countdown.value = 60
     countdownTimer = setInterval(() => {

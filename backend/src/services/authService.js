@@ -79,6 +79,25 @@ export async function login({ phone, password }) {
   return { user, ...tokens }
 }
 
+/** 手机号 + 短信验证码登录（验证码须已由 consumeSmsCode 消费） */
+export async function loginByCode({ phone }) {
+  const user = await User.findOne({ phone }).select('+refreshToken')
+  if (!user) {
+    const err = new Error('该手机号未注册，请先注册')
+    err.code = ErrorCodes.BAD_REQUEST
+    throw err
+  }
+  if (user.status === 'banned') {
+    const err = new Error('账号已被封禁')
+    err.code = ErrorCodes.FORBIDDEN
+    throw err
+  }
+  const tokens = await issueTokens(user)
+  user.lastLoginAt = new Date()
+  await user.save()
+  return { user, ...tokens }
+}
+
 export async function issueTokens(user) {
   const payload = buildTokenPayload(user)
   const accessToken = signAccessToken(payload)

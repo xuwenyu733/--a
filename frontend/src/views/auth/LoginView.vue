@@ -9,11 +9,32 @@
         <p class="brand-slogan">— 连接校园 · 发现更好的你 —</p>
       </div>
 
+      <div class="mode-tabs" role="tablist">
+        <button
+          type="button"
+          class="mode-tab"
+          :class="{ active: loginMode === 'password' }"
+          role="tab"
+          @click="loginMode = 'password'"
+        >
+          密码登录
+        </button>
+        <button
+          type="button"
+          class="mode-tab"
+          :class="{ active: loginMode === 'code' }"
+          role="tab"
+          @click="loginMode = 'code'"
+        >
+          验证码登录
+        </button>
+      </div>
+
       <el-form
         ref="formRef"
         class="login-form"
         :model="form"
-        :rules="rules"
+        :rules="activeRules"
         aria-label="登录表单"
         @submit.prevent="handleLogin"
       >
@@ -33,7 +54,7 @@
           </el-input>
         </el-form-item>
 
-        <el-form-item prop="password">
+        <el-form-item v-if="loginMode === 'password'" prop="password">
           <el-input
             v-model="form.password"
             class="field"
@@ -49,6 +70,31 @@
               <img class="field-ico" src="/login/lock.png" alt="" />
             </template>
           </el-input>
+        </el-form-item>
+
+        <el-form-item v-else prop="code">
+          <div class="code-row">
+            <el-input
+              v-model="form.code"
+              class="field"
+              size="large"
+              placeholder="请输入验证码"
+              aria-required="true"
+              @input="errorTip = ''"
+            >
+              <template #prefix>
+                <img class="field-ico" src="/login/lock.png" alt="" />
+              </template>
+            </el-input>
+            <button
+              type="button"
+              class="code-btn"
+              :disabled="countdown > 0 || sendingCode"
+              @click="sendSms"
+            >
+              {{ countdown > 0 ? `${countdown}s` : '获取验证码' }}
+            </button>
+          </div>
         </el-form-item>
 
         <p v-if="errorTip" class="error-tip" role="alert">{{ errorTip }}</p>
@@ -106,10 +152,11 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, onUnmounted, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
+import * as authApi from '@/api/auth'
 import BeianFooter from '@/components/BeianFooter.vue'
 
 const router = useRouter()
@@ -117,21 +164,34 @@ const route = useRoute()
 const auth = useAuthStore()
 const formRef = ref()
 const loading = ref(false)
+const sendingCode = ref(false)
+const countdown = ref(0)
+let countdownTimer = null
 const showTestAccounts = import.meta.env.DEV
 const errorTip = ref('')
 const agreed = ref(false)
-const form = ref({ phone: '', password: '' })
-const rules = {
-  phone: [
-    { required: true, message: '请输入手机号', trigger: 'blur' },
-    { pattern: /^1\d{10}$/, message: '请输入正确的11位手机号', trigger: 'blur' },
-  ],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
-}
+const loginMode = ref('password')
+const form = ref({ phone: '', password: '', code: '' })
+const phoneRules = [
+  { required: true, message: '请输入手机号', trigger: 'blur' },
+  { pattern: /^1\d{10}$/, message: '请输入正确的11位手机号', trigger: 'blur' },
+]
+const activeRules = computed(() =>
+  loginMode.value === 'password'
+    ? {
+        phone: phoneRules,
+        password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
+      }
+    : {
+        phone: phoneRules,
+        code: [{ required: true, message: '请输入验证码', trigger: 'blur' }],
+      }
+)
 
 function fill(phone, password) {
   errorTip.value = ''
-  form.value = { phone, password }
+  loginMode.value = 'password'
+  form.value = { phone, password, code: '' }
 }
 
 function onAgreeChange(checked) {
@@ -150,7 +210,40 @@ function safeRedirect(raw, fallback) {
 function loginErrorMessage(err) {
   const msg = err?.response?.data?.message || err?.message
   if (msg && msg !== 'Network Error' && msg !== '请求失败') return msg
-  return '手机号或密码错误'
+  return loginMode.value === 'code' ? '验证码错误或已过期' : '手机号或密码错误'
+}
+
+function startCountdown(seconds) {
+  countdown.value = seconds
+  if (countdownTimer) clearInterval(countdownTimer)
+  countdownTimer = setInterval(() => {
+    countdown.value -= 1
+    if (countdown.value <= 0) {
+      clearInterval(countdownTimer)
+      countdownTimer = null
+    }
+  }, 1000)
+}
+
+async function sendSms() {
+  errorTip.value = ''
+  const phone = String(form.value.phone || '').trim()
+  if (!/^1\d{10}$/.test(phone)) {
+    errorTip.value = '请输入正确的11位手机号'
+    return
+  }
+  sendingCode.value = true
+  try {
+    const res = await authApi.sendCode(phone, 'login')
+    ElMessage.success('验证码已发送')
+    startCountdown(60)
+  } catch (err) {
+    const msg = err?.response?.data?.message || err?.message || '发送失败'
+    errorTip.value = msg
+    ElMessage.error(msg)
+  } finally {
+    sendingCode.value = false
+  }
 }
 
 async function handleLogin() {
@@ -166,7 +259,11 @@ async function handleLogin() {
   }
   loading.value = true
   try {
-    await auth.login(form.value)
+    if (loginMode.value === 'code') {
+      await auth.loginByCode({ phone: form.value.phone, code: form.value.code })
+    } else {
+      await auth.login({ phone: form.value.phone, password: form.value.password })
+    }
     ElMessage.success('登录成功')
     router.push(safeRedirect(route.query.redirect, auth.homePath))
   } catch (err) {
@@ -177,6 +274,10 @@ async function handleLogin() {
     loading.value = false
   }
 }
+
+onUnmounted(() => {
+  if (countdownTimer) clearInterval(countdownTimer)
+})
 </script>
 
 <style scoped>
@@ -241,6 +342,55 @@ async function handleLogin() {
   font-size: 13px;
   color: #8aa0b8;
   letter-spacing: 1px;
+}
+
+.mode-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+  padding: 4px;
+  border-radius: 14px;
+  background: #eef4fb;
+}
+.mode-tab {
+  flex: 1;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  padding: 10px 0;
+  font-size: 14px;
+  color: #6b8299;
+  cursor: pointer;
+}
+.mode-tab.active {
+  background: #fff;
+  color: #2f7ff0;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(47, 127, 240, 0.12);
+}
+.code-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  align-items: stretch;
+}
+.code-row .field {
+  flex: 1;
+}
+.code-btn {
+  flex-shrink: 0;
+  min-width: 110px;
+  border: none;
+  border-radius: 14px;
+  background: #2f7ff0;
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0 12px;
+}
+.code-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .login-form :deep(.el-form-item) {

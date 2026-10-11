@@ -18,11 +18,12 @@ function buildAuthData(req, { user, accessToken, refreshToken }) {
 
 export async function sendCode(req, res, next) {
   try {
-    const { phone } = req.body
+    const { phone, purpose } = req.body
     if (!phone) return fail(res, ErrorCodes.BAD_REQUEST, '请输入手机号')
-    const result = await smsCodeService.issueSmsCode(phone)
+    const result = await smsCodeService.issueSmsCode(phone, { purpose })
     return success(res, result, '验证码已发送')
   } catch (err) {
+    if (err.code) return fail(res, err.code, err.message, err.code >= 50000 ? 502 : 400)
     next(err)
   }
 }
@@ -76,6 +77,38 @@ export async function login(req, res, next) {
       return fail(res, err.code, err.message, 403)
     }
     if (err.code) return fail(res, err.code, err.message, 401)
+    next(err)
+  }
+}
+
+export async function loginByCode(req, res, next) {
+  try {
+    const { phone, code } = req.body
+    if (!phone || !code) {
+      return fail(res, ErrorCodes.BAD_REQUEST, '请输入手机号和验证码')
+    }
+    try {
+      await smsCodeService.consumeSmsCode(phone, code)
+    } catch (e) {
+      return fail(res, e.code || ErrorCodes.BAD_REQUEST, e.message || '验证码错误')
+    }
+    const { user, accessToken, refreshToken } = await authService.loginByCode({ phone })
+    setRefreshTokenCookie(res, refreshToken)
+    const populated = await user.populate('regionId', 'name code')
+    return success(
+      res,
+      buildAuthData(req, {
+        user: authService.sanitizeUser(populated, { self: false }),
+        accessToken,
+        refreshToken,
+      }),
+      '登录成功'
+    )
+  } catch (err) {
+    if (err.code === ErrorCodes.FORBIDDEN) {
+      return fail(res, err.code, err.message, 403)
+    }
+    if (err.code) return fail(res, err.code, err.message, 400)
     next(err)
   }
 }

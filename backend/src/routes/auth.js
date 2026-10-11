@@ -5,6 +5,7 @@ import { requireAuth } from '../middlewares/auth.js'
 import { validateBody } from '../middlewares/validate.js'
 import {
   changePasswordSchema,
+  loginByCodeSchema,
   loginSchema,
   registerSchema,
   sendCodeSchema,
@@ -47,6 +48,12 @@ const refreshLimiter = rateLimit({
 router.post('/send-code', sendCodeLimiter, validateBody(sendCodeSchema), authController.sendCode)
 router.post('/register', registerLimiter, validateBody(registerSchema), authController.register)
 router.post('/login', loginLimiter, validateBody(loginSchema), authController.login)
+router.post(
+  '/login-by-code',
+  loginLimiter,
+  validateBody(loginByCodeSchema),
+  authController.loginByCode
+)
 router.post('/wechat-login', loginLimiter, validateBody(wechatLoginSchema), authController.wechatLogin)
 router.post('/refresh-token', refreshLimiter, authController.refreshToken)
 router.post('/change-password', requireAuth, validateBody(changePasswordSchema), authController.changePassword)

@@ -53,10 +53,25 @@ if (isProd && !mongoHasAuth) {
 }
 
 const devSmsCode = process.env.DEV_SMS_CODE || '123456'
-const smsConfigured = Boolean(process.env.SMS_HOST || process.env.SMS_ACCESS_KEY_ID)
+const sms = {
+  provider: (process.env.SMS_PROVIDER || '').trim().toLowerCase() || 'tencent',
+  secretId: process.env.SMS_SECRET_ID || process.env.SMS_ACCESS_KEY_ID || '',
+  secretKey: process.env.SMS_SECRET_KEY || process.env.SMS_ACCESS_KEY_SECRET || '',
+  sdkAppId: process.env.SMS_SDK_APP_ID || '',
+  signName: process.env.SMS_SIGN_NAME || '',
+  templateId: process.env.SMS_TEMPLATE_ID || '',
+  region: process.env.SMS_REGION || 'ap-guangzhou',
+  /** 兼容旧 SMS_HOST 开关 */
+  host: process.env.SMS_HOST || '',
+}
+const smsConfigured = Boolean(
+  (sms.secretId && sms.secretKey && sms.sdkAppId && sms.signName && sms.templateId) ||
+    sms.host ||
+    process.env.SMS_ACCESS_KEY_ID
+)
 if (isProd && !smsConfigured) {
   logger.warn(
-    '[安全] 生产环境未配置真实短信（SMS_HOST / SMS_ACCESS_KEY_ID）。验证码不会返回客户端，但仍建议尽快接入短信；禁止将 DEV_SMS_CODE 告知用户以外的人。'
+    '[安全] 生产环境未配置真实短信（SMS_SECRET_ID / SMS_SDK_APP_ID 等）。验证码不会返回客户端，但仍建议尽快接入短信；禁止将 DEV_SMS_CODE 告知用户以外的人。'
   )
 }
 if (isProd && !smsConfigured && devSmsCode === '123456' && process.env.ALLOW_DEFAULT_SMS !== '1') {
@@ -120,6 +135,8 @@ export default {
     password: process.env.SUPER_ADMIN_PASSWORD || defaultAdminPassword,
   },
   devSmsCode,
+  sms,
+  smsConfigured,
   oss: {
     enabled: Boolean(
       process.env.OSS_BUCKET &&

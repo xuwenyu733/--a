@@ -20,7 +20,7 @@ request.interceptors.response.use(
     const resData = error.response?.data
     const msg = resData?.message || error.message || '网络错误'
     const url = error.config?.url || ''
-    const isLoginAttempt = /\/auth\/(login|wechat-login)/.test(url)
+    const isLoginAttempt = /\/auth\/(login|login-by-code|wechat-login)/.test(url)
     const isUnauthenticatedRequest = !error.config?.headers?.Authorization
     const status = error.response?.status
     const is429 = status === 429 || resData?.code === 40029
