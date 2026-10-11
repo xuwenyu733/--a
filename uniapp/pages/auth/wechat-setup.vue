@@ -13,27 +13,20 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
 import { getRegions, wechatLogin } from '@/api/auth'
 import { saveSession } from '@/utils/auth'
 import { onSessionReady } from '@/utils/unread'
+import { getWxLoginCode } from '@/utils/wechat'
 
-const wxCode = ref('')
 const regions = ref([])
 const regionNames = ref([])
 const regionIndex = ref(0)
 const nickname = ref('')
 const loading = ref(false)
 
-onLoad((options) => {
-  wxCode.value = options.code || uni.getStorageSync('wx_login_code') || ''
-  if (!wxCode.value) {
-    uni.showToast({ title: '缺少登录凭证', icon: 'none' })
-    setTimeout(() => uni.navigateBack(), 500)
-  }
-})
-
 onMounted(async () => {
+  // 首次探测登录时 code 已被用掉，此处不再复用；完成登录时重新 uni.login
+  uni.removeStorageSync('wx_login_code')
   try {
     regions.value = await getRegions()
     regionNames.value = regions.value.map((r) => r.name)
@@ -48,18 +41,19 @@ function onRegion(e) {
 
 async function submit() {
   const regionId = regions.value[regionIndex.value]?._id
-  if (!wxCode.value || !regionId) {
+  if (!regionId) {
     uni.showToast({ title: '请选择校区', icon: 'none' })
     return
   }
   loading.value = true
   try {
+    // code 只能用一次：完善信息时必须重新获取
+    const code = await getWxLoginCode()
     const data = await wechatLogin({
-      code: wxCode.value,
+      code,
       regionId,
       nickname: nickname.value,
     })
-    uni.removeStorageSync('wx_login_code')
     saveSession(data)
     onSessionReady()
     uni.showToast({ title: '登录成功', icon: 'success' })

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   buildJsapiPayParams,
+  buildUnifiedOrderParams,
   objectToXml,
   verifyWechatPayNotify,
   wechatMd5Sign,
@@ -76,5 +77,37 @@ describe('wechatPayV2', () => {
       apiKey
     )
     expect(r.valid).toBe(false)
+  })
+
+  it('buildUnifiedOrderParams for NATIVE has no openid and includes product_id', () => {
+    const params = buildUnifiedOrderParams({
+      appId: 'wxAPP',
+      mchId: '1750738602',
+      paymentNo: 'PAYNATIVE1',
+      body: '测试商品',
+      totalFeeFen: 1,
+      notifyUrl: 'https://xymarket.cn/api/v1/payments/notify/wechat',
+      tradeType: 'NATIVE',
+      productId: 'PAYNATIVE1',
+    })
+    expect(params.trade_type).toBe('NATIVE')
+    expect(params.openid).toBeUndefined()
+    expect(params.product_id).toBe('PAYNATIVE1')
+    expect(params.total_fee).toBe('1')
+  })
+
+  it('buildUnifiedOrderParams for JSAPI includes openid', () => {
+    const params = buildUnifiedOrderParams({
+      appId: 'wxAPP',
+      mchId: '1750738602',
+      paymentNo: 'PAYJSAPI1',
+      body: '测试',
+      totalFeeFen: 100,
+      notifyUrl: 'https://xymarket.cn/api/v1/payments/notify/wechat',
+      tradeType: 'JSAPI',
+      openid: 'oTEST',
+    })
+    expect(params.trade_type).toBe('JSAPI')
+    expect(params.openid).toBe('oTEST')
   })
 })

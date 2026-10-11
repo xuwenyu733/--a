@@ -6,6 +6,7 @@
     destroy-on-close
     @update:model-value="$emit('update:modelValue', $event)"
     @open="onOpen"
+    @closed="onClosed"
   >
     <p class="pay-amount">应付：<strong>¥{{ order?.price }}</strong></p>
 
@@ -39,6 +40,13 @@
             </template>
             <p class="expire">请在 {{ formatExpire(activePayment.expiredAt) }} 前完成</p>
           </el-alert>
+
+          <div v-if="qrDataUrl" class="qr-box">
+            <img :src="qrDataUrl" alt="微信支付二维码" class="pay-qr-native" />
+            <p class="qr-tip">请使用微信扫一扫完成支付</p>
+            <p v-if="polling" class="qr-wait">等待支付结果…</p>
+          </div>
+
           <el-button
             v-if="paymentConfig.sandboxSimulate"
             type="primary"
@@ -48,7 +56,12 @@
           >
             模拟支付成功
           </el-button>
-          <el-button v-if="activePayment.payUrl" link type="primary" @click="openPayUrl">
+          <el-button
+            v-if="activePayment.payUrl && paymentConfig.sandboxSimulate"
+            link
+            type="primary"
+            @click="openPayUrl"
+          >
             打开沙箱支付页
           </el-button>
         </div>
@@ -90,6 +103,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
+import QRCode from 'qrcode'
 import * as paymentApi from '@/api/payment'
 import { getFileUrl } from '@/utils/fileUrl'
 
@@ -113,6 +127,9 @@ const activePayment = ref(null)
 const creating = ref(false)
 const paying = ref(false)
 const marking = ref(false)
+const qrDataUrl = ref('')
+const polling = ref(false)
+let pollTimer = null
 
 const canMarkManual = computed(() => {
   const s = props.order?.paymentStatus
@@ -128,8 +145,71 @@ function formatExpire(t) {
   return new Date(t).toLocaleString('zh-CN')
 }
 
+function stopPolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+  polling.value = false
+}
+
+async function renderQr(content) {
+  if (!content || String(content).startsWith('SANDBOX|')) {
+    qrDataUrl.value = ''
+    return
+  }
+  try {
+    qrDataUrl.value = await QRCode.toDataURL(String(content), {
+      width: 220,
+      margin: 2,
+      color: { dark: '#111111', light: '#ffffff' },
+    })
+  } catch {
+    qrDataUrl.value = ''
+    ElMessage.error('生成支付二维码失败')
+  }
+}
+
+function startPolling(paymentNo) {
+  stopPolling()
+  if (!paymentNo) return
+  polling.value = true
+  pollTimer = setInterval(async () => {
+    try {
+      const tx = await paymentApi.getPaymentDetail(paymentNo)
+      if (tx?.status === 'paid') {
+        stopPolling()
+        ElMessage.success('支付成功')
+        emit('paid')
+        emit('update:modelValue', false)
+      } else if (tx?.status === 'expired' || tx?.status === 'cancelled') {
+        stopPolling()
+        ElMessage.warning(tx.status === 'expired' ? '支付单已过期' : '支付单已取消')
+      }
+    } catch {
+      /* 轮询失败忽略，下一轮再试 */
+    }
+  }, 2500)
+}
+
+async function applyPaymentResult(res) {
+  const payment = res?.payment || res
+  activePayment.value = payment
+  const action = res?.clientAction
+  const content = payment?.qrContent
+  if (action === 'scanQr' || (content && !paymentConfig.value.sandboxSimulate)) {
+    await renderQr(content)
+    startPolling(payment.paymentNo)
+  } else {
+    qrDataUrl.value = ''
+    stopPolling()
+  }
+}
+
 async function onOpen() {
   activePayment.value = null
+  qrDataUrl.value = ''
+  stopPolling()
   try {
     paymentConfig.value = await paymentApi.getPaymentConfig()
     if (!paymentConfig.value.enabled) {
@@ -140,7 +220,7 @@ async function onOpen() {
     if (props.order?._id) {
       const res = await paymentApi.getActiveOrderPayment(props.order._id)
       if (res.payment?.status === 'pending') {
-        activePayment.value = res.payment
+        await applyPaymentResult(res)
       }
     }
   } catch (e) {
@@ -148,13 +228,24 @@ async function onOpen() {
   }
 }
 
+function onClosed() {
+  stopPolling()
+  qrDataUrl.value = ''
+  activePayment.value = null
+}
+
 async function createPayment() {
   if (!props.order?._id || !channel.value) return
   creating.value = true
   try {
-    const res = await paymentApi.createOrderPayment(props.order._id, { channel: channel.value })
-    activePayment.value = res.payment
-    ElMessage.success('支付单已创建')
+    const payload = { channel: channel.value }
+    // PC 网页：微信走 Native 扫码；沙箱仍可模拟
+    if (channel.value === 'wechat' && paymentConfig.value.mode === 'live') {
+      payload.scene = 'native'
+    }
+    const res = await paymentApi.createOrderPayment(props.order._id, payload)
+    await applyPaymentResult(res)
+    ElMessage.success(res.clientAction === 'scanQr' ? '请扫码支付' : '支付单已创建')
   } catch (e) {
     ElMessage.error(e.message || '创建支付失败')
   } finally {
@@ -167,6 +258,7 @@ async function doSimulatePay() {
   paying.value = true
   try {
     await paymentApi.simulatePayment(activePayment.value.paymentNo)
+    stopPolling()
     ElMessage.success('支付成功')
     emit('paid')
     emit('update:modelValue', false)
@@ -208,4 +300,26 @@ defineExpose({ marking })
 .simulate-btn, .create-btn { width: 100%; margin-top: 12px; }
 .pay-qr { width: 100%; max-width: 240px; display: block; margin: 0 auto; border-radius: 8px; }
 .pay-tip { text-align: center; font-size: 13px; color: var(--app-muted); margin-top: 12px; }
+.qr-box {
+  margin-top: 16px;
+  text-align: center;
+}
+.pay-qr-native {
+  width: 220px;
+  height: 220px;
+  display: block;
+  margin: 0 auto;
+  border-radius: 8px;
+  background: #fff;
+}
+.qr-tip {
+  margin: 12px 0 0;
+  font-size: 14px;
+  color: var(--el-text-color-primary);
+}
+.qr-wait {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
 </style>

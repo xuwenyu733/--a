@@ -221,8 +221,8 @@ async function wechatLogin() {
       setTimeout(() => uni.switchTab({ url: '/pages/user/index' }), 400)
     } catch (e) {
       if (e.code === 40010) {
-        uni.setStorageSync('wx_login_code', code)
-        await openPageSafe(`/pages/auth/wechat-setup?code=${encodeURIComponent(code)}`, '无法打开完善信息页')
+        // code 已被服务端换过 openid，不可再传给完善页；完善页会重新 uni.login
+        await openPageSafe('/pages/auth/wechat-setup', '无法打开完善信息页')
         return
       }
       throw e

@@ -5,6 +5,7 @@ import {
   assertCertFilesOptional,
   buildJsapiPayParams,
   unifiedOrderJsapi,
+  unifiedOrderNative,
   verifyWechatPayNotify,
   yuanToFen,
 } from './wechatPayV2.js'
@@ -62,15 +63,17 @@ function createSandboxGateway(channel) {
 }
 
 /**
- * 正式微信支付：APIv2 统一下单（JSAPI）+ 回调验签。
- * createPrepay 返回 payParams 供小程序 uni.requestPayment。
+ * 正式微信支付：APIv2 统一下单。
+ * - jsapi：返回 payParams 供小程序 uni.requestPayment
+ * - native：返回 qrContent(code_url) 供 PC 扫码
  */
 function createLiveWechatGateway() {
   const wc = config.payment.wechat
   return {
     provider: PAYMENT_PROVIDER.WECHAT,
-    async createPrepay({ paymentNo, amount, title, openid, expireAt, clientIp }) {
-      if (!openid) {
+    async createPrepay({ paymentNo, amount, title, openid, expireAt, clientIp, scene }) {
+      const useNative = scene === 'native'
+      if (!useNative && !openid) {
         const err = new Error('微信支付需要微信登录（缺少 openid），请使用微信一键登录后再支付')
         err.code = 40000
         throw err
@@ -88,18 +91,35 @@ function createLiveWechatGateway() {
       assertCertFilesOptional(wc.certPath, wc.keyPath)
 
       const notify = notifyUrl(PAYMENT_CHANNEL.WECHAT)
-      const { prepayId } = await unifiedOrderJsapi({
+      const common = {
         appId: wc.appId,
         mchId: wc.mchId,
         apiKey: wc.apiKey,
-        openid,
         paymentNo,
         body: title || '校园市集商品',
         totalFeeFen: yuanToFen(amount),
         notifyUrl: notify,
         clientIp: clientIp || '127.0.0.1',
         expireAt,
-      })
+      }
+
+      if (useNative) {
+        const { codeUrl, prepayId } = await unifiedOrderNative({
+          ...common,
+          productId: paymentNo,
+        })
+        return {
+          prepayId: prepayId || `native_${paymentNo}`,
+          payUrl: null,
+          qrContent: codeUrl,
+          payParams: null,
+          clientAction: 'scanQr',
+          notifyUrl: notify,
+          transactionId: null,
+        }
+      }
+
+      const { prepayId } = await unifiedOrderJsapi({ ...common, openid })
       const payParams = buildJsapiPayParams({
         appId: wc.appId,
         prepayId,

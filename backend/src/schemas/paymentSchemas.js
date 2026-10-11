@@ -2,6 +2,8 @@ import { z } from 'zod'
 
 export const createPaymentSchema = z.object({
   channel: z.enum(['wechat', 'alipay']),
+  /** jsapi=小程序调起；native=PC 扫码；省略时按渠道默认（微信走 jsapi） */
+  scene: z.enum(['jsapi', 'native']).optional(),
 })
 
 /** 支付单号：PAY 前缀 + 字母数字，或种子数据 DEMO 前缀 */

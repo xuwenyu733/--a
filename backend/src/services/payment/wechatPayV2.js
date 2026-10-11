@@ -59,48 +59,56 @@ export function buildJsapiPayParams({ appId, prepayId, apiKey }) {
   return { timeStamp, nonceStr, package: pkg, signType, paySign }
 }
 
-export async function unifiedOrderJsapi({
+function formatTimeExpire(expireAt) {
+  if (!(expireAt instanceof Date) || Number.isNaN(expireAt.getTime())) return null
+  const pad = (n) => String(n).padStart(2, '0')
+  const y = expireAt.getFullYear()
+  const M = pad(expireAt.getMonth() + 1)
+  const d = pad(expireAt.getDate())
+  const h = pad(expireAt.getHours())
+  const m = pad(expireAt.getMinutes())
+  const s = pad(expireAt.getSeconds())
+  return `${y}${M}${d}${h}${m}${s}`
+}
+
+/** 组装统一下单公共参数（未签名） */
+export function buildUnifiedOrderParams({
   appId,
   mchId,
-  apiKey,
-  openid,
   paymentNo,
   body,
   totalFeeFen,
   notifyUrl,
   clientIp = '127.0.0.1',
   expireAt,
+  tradeType,
+  openid,
+  productId,
 }) {
-  const nonce_str = crypto.randomBytes(16).toString('hex')
   const params = {
     appid: appId,
     mch_id: mchId,
-    nonce_str,
+    nonce_str: crypto.randomBytes(16).toString('hex'),
     body: String(body || '校园市集商品').slice(0, 120),
     out_trade_no: paymentNo,
     total_fee: String(totalFeeFen),
     spbill_create_ip: clientIp,
     notify_url: notifyUrl,
-    trade_type: 'JSAPI',
-    openid,
+    trade_type: tradeType,
   }
-  if (expireAt instanceof Date && !Number.isNaN(expireAt.getTime())) {
-    // yyyyMMddHHmmss
-    const pad = (n) => String(n).padStart(2, '0')
-    const y = expireAt.getFullYear()
-    const M = pad(expireAt.getMonth() + 1)
-    const d = pad(expireAt.getDate())
-    const h = pad(expireAt.getHours())
-    const m = pad(expireAt.getMinutes())
-    const s = pad(expireAt.getSeconds())
-    params.time_expire = `${y}${M}${d}${h}${m}${s}`
-  }
-  params.sign = wechatMd5Sign(params, apiKey)
+  const timeExpire = formatTimeExpire(expireAt)
+  if (timeExpire) params.time_expire = timeExpire
+  if (tradeType === 'JSAPI' && openid) params.openid = openid
+  if (tradeType === 'NATIVE' && productId) params.product_id = String(productId).slice(0, 32)
+  return params
+}
 
+async function postUnifiedOrder(params, apiKey) {
+  const signed = { ...params, sign: wechatMd5Sign(params, apiKey) }
   const res = await fetch('https://api.mch.weixin.qq.com/pay/unifiedorder', {
     method: 'POST',
     headers: { 'Content-Type': 'text/xml; charset=utf-8' },
-    body: objectToXml(params),
+    body: objectToXml(signed),
   })
   const text = await res.text()
   const data = xmlToObject(text)
@@ -116,12 +124,74 @@ export async function unifiedOrderJsapi({
     err.wechat = data
     throw err
   }
+  return data
+}
+
+export async function unifiedOrderJsapi({
+  appId,
+  mchId,
+  apiKey,
+  openid,
+  paymentNo,
+  body,
+  totalFeeFen,
+  notifyUrl,
+  clientIp = '127.0.0.1',
+  expireAt,
+}) {
+  const params = buildUnifiedOrderParams({
+    appId,
+    mchId,
+    paymentNo,
+    body,
+    totalFeeFen,
+    notifyUrl,
+    clientIp,
+    expireAt,
+    tradeType: 'JSAPI',
+    openid,
+  })
+  const data = await postUnifiedOrder(params, apiKey)
   if (!data.prepay_id) {
     const err = new Error('微信未返回 prepay_id')
     err.code = 50200
     throw err
   }
   return { prepayId: data.prepay_id, raw: data }
+}
+
+/** PC 扫码：NATIVE，返回 code_url */
+export async function unifiedOrderNative({
+  appId,
+  mchId,
+  apiKey,
+  paymentNo,
+  body,
+  totalFeeFen,
+  notifyUrl,
+  clientIp = '127.0.0.1',
+  expireAt,
+  productId,
+}) {
+  const params = buildUnifiedOrderParams({
+    appId,
+    mchId,
+    paymentNo,
+    body,
+    totalFeeFen,
+    notifyUrl,
+    clientIp,
+    expireAt,
+    tradeType: 'NATIVE',
+    productId: productId || paymentNo,
+  })
+  const data = await postUnifiedOrder(params, apiKey)
+  if (!data.code_url) {
+    const err = new Error('微信未返回 code_url（请确认商户已开通 Native/扫码支付）')
+    err.code = 50200
+    throw err
+  }
+  return { codeUrl: data.code_url, prepayId: data.prepay_id || '', raw: data }
 }
 
 /**

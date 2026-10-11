@@ -105,7 +105,7 @@ export async function getActivePayment(orderId, userId) {
   return { order, payment: tx }
 }
 
-export async function createOnlinePayment(orderId, buyerId, { channel }) {
+export async function createOnlinePayment(orderId, buyerId, { channel, scene } = {}) {
   const order = await Order.findOne(activeOrderFilter({ _id: orderId })).populate(
     'productId',
     'title'
@@ -130,6 +130,8 @@ export async function createOnlinePayment(orderId, buyerId, { channel }) {
     throw err
   }
 
+  const payScene = scene === 'native' ? 'native' : 'jsapi'
+
   await expireStalePendingPayments(orderId)
 
   const existing = await PaymentTransaction.findOne({
@@ -142,6 +144,12 @@ export async function createOnlinePayment(orderId, buyerId, { channel }) {
       return formatPaymentResponse(existing, order, {
         sandbox: config.payment.mode === 'sandbox',
         payParams: existing.payParams || null,
+        clientAction:
+          existing.qrContent && config.payment.mode !== 'sandbox'
+            ? 'scanQr'
+            : existing.payParams
+              ? 'requestPayment'
+              : null,
       })
     }
     existing.status = PAYMENT_TX_STATUS.CANCELLED
@@ -156,6 +164,7 @@ export async function createOnlinePayment(orderId, buyerId, { channel }) {
   if (
     channel === PAYMENT_CHANNEL.WECHAT &&
     config.payment.mode === 'live' &&
+    payScene !== 'native' &&
     !openid
   ) {
     const err = new Error('请先使用微信登录后再发起微信支付')
@@ -170,6 +179,7 @@ export async function createOnlinePayment(orderId, buyerId, { channel }) {
     title: order.productId?.title || '校园市集商品',
     expireAt: expiredAt,
     openid,
+    scene: payScene,
   })
 
   const tx = await PaymentTransaction.create({

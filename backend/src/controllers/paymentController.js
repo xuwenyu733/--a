@@ -7,10 +7,11 @@ export function config(req, res) {
 
 export async function createForOrder(req, res, next) {
   try {
-    const { channel } = req.body
+    const { channel, scene } = req.body
     if (!channel) return fail(res, ErrorCodes.BAD_REQUEST, '请选择支付方式')
     const data = await paymentService.createOnlinePayment(req.params.orderId, req.user._id, {
       channel,
+      scene,
     })
     return success(res, data, '支付单已创建')
   } catch (err) {
@@ -47,9 +48,11 @@ export async function activeForOrder(req, res, next) {
       mode: payCfg.mode,
       clientAction: payment?.payParams
         ? 'requestPayment'
-        : payCfg.sandboxSimulate
-          ? 'simulate'
-          : null,
+        : payment?.qrContent && !payCfg.sandboxSimulate
+          ? 'scanQr'
+          : payCfg.sandboxSimulate
+            ? 'simulate'
+            : null,
     })
   } catch (err) {
     if (err.code) return fail(res, err.code, err.message, err.code === 40400 ? 404 : 403)

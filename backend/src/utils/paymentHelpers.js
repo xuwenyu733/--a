@@ -54,7 +54,7 @@ export function validatePaymentParticipant({ buyerId, sellerId, userId }) {
 export function formatPaymentResponse(tx, order, { sandbox = false, payParams = null, clientAction = null } = {}) {
   const action =
     clientAction ||
-    (payParams ? 'requestPayment' : sandbox ? 'simulate' : null)
+    (payParams ? 'requestPayment' : tx.qrContent && !sandbox ? 'scanQr' : sandbox ? 'simulate' : null)
   return {
     payment: {
       paymentNo: tx.paymentNo,
@@ -78,7 +78,7 @@ export function formatPaymentResponse(tx, order, { sandbox = false, payParams = 
       : null,
     sandbox,
     mode: sandbox ? 'sandbox' : 'live',
-    /** simulate | requestPayment */
+    /** simulate | requestPayment | scanQr */
     clientAction: action,
   }
 }
