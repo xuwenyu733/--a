@@ -138,6 +138,8 @@ page {
 .tag.success { background: #f0f9eb; color: $success; }
 .tag.warning { background: #fdf6ec; color: $warning; }
 .tag.danger { background: #fef0f0; color: $danger; }
+.tag.neutral,
+.tag.cancelled,
 .tag.info { background: #f4f4f5; color: $muted; }
 
 .btn-primary {

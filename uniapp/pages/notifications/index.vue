@@ -75,6 +75,9 @@ async function load() {
 
 function canNavigate(n) {
   if (n.type === 'new_message') return !!n.relatedId
+  if (n.type === 'verify_student' || n.type === 'verify_merchant' || n.type === 'verify_courier') {
+    return true
+  }
   return n.relatedId && NAVIGABLE_TYPES.includes(n.type)
 }
 
@@ -105,6 +108,15 @@ function navigate(n) {
       } else {
         uni.navigateTo({ url: '/pages/user/friend-search' })
       }
+      break
+    case 'verify_student':
+      uni.navigateTo({ url: '/pages/user/verify-student' })
+      break
+    case 'verify_merchant':
+      uni.navigateTo({ url: '/pages/user/verify-merchant' })
+      break
+    case 'verify_courier':
+      uni.navigateTo({ url: '/pages/user/verify-courier' })
       break
     default:
       break

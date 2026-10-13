@@ -42,7 +42,7 @@ export function deliveryStatusClass(statusOrItem) {
   const status = item ? item.status : statusOrItem
   if (item?.systemAcceptExpired) return 'danger'
   if (status === 'completed') return 'success'
-  if (status === 'cancelled') return 'info'
+  if (status === 'cancelled') return 'cancelled'
   if (status === 'open') return 'warning'
   return 'primary'
 }

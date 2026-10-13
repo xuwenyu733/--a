@@ -4,6 +4,52 @@ import MerchantProfile from '../models/MerchantProfile.js'
 import CourierProfile from '../models/CourierProfile.js'
 import { ROLES } from '../constants/roles.js'
 import { createAuditLog } from './auditService.js'
+import { notifyUser } from './notificationService.js'
+import logger from '../utils/logger.js'
+
+const VERIFY_NOTIFY = {
+  student: {
+    type: 'verify_student',
+    approvedTitle: '学生认证已通过',
+    approvedContent: '恭喜，您的学生认证已通过，可发布闲置、购买商品，也可继续申请商家入驻或骑手认证。',
+    rejectedTitle: '学生认证未通过',
+  },
+  merchant: {
+    type: 'verify_merchant',
+    approvedTitle: '商家入驻已通过',
+    approvedContent: '恭喜，您的商家入驻申请已通过，可开设店铺并发布商品。',
+    rejectedTitle: '商家入驻未通过',
+  },
+  courier: {
+    type: 'verify_courier',
+    approvedTitle: '骑手认证已通过',
+    approvedContent: '恭喜，您的骑手认证已通过，可进入跑腿大厅接单。',
+    rejectedTitle: '骑手认证未通过',
+  },
+}
+
+export function buildVerifyNotifyPayload(verification, status, rejectReason) {
+  const cfg = VERIFY_NOTIFY[verification.type]
+  if (!cfg) return null
+  if (status === 'approved') {
+    return {
+      type: cfg.type,
+      title: cfg.approvedTitle,
+      content: cfg.approvedContent,
+      relatedId: verification._id,
+    }
+  }
+  if (status === 'rejected') {
+    const reason = (rejectReason || '').trim() || '未填写具体原因'
+    return {
+      type: cfg.type,
+      title: cfg.rejectedTitle,
+      content: `原因：${reason}。请修改信息后重新提交。`,
+      relatedId: verification._id,
+    }
+  }
+  return null
+}
 
 export async function submitStudentVerification(user, payload) {
   if (user.role !== ROLES.STUDENT) {
@@ -163,6 +209,19 @@ export async function reviewVerification(verificationId, reviewer, { status, rej
     targetId: verification._id,
     detail: { status, rejectReason },
   })
+
+  const notifyPayload = buildVerifyNotifyPayload(verification, status, rejectReason)
+  const notifyUserId = user?._id || verification.userId?._id || verification.userId
+  if (notifyPayload && notifyUserId) {
+    try {
+      await notifyUser(notifyUserId, notifyPayload)
+    } catch (err) {
+      logger.warn('verification notify failed', {
+        verificationId: verification._id?.toString?.(),
+        err: err?.message,
+      })
+    }
+  }
 
   return verification
 }

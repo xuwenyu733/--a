@@ -34,7 +34,7 @@
         />
         <view v-for="item in list" :key="item._id" class="card order-card">
           <view class="order-head">
-            <text class="tag" :class="item.statusClass">{{ ORDER_STATUS[item.status] }}</text>
+            <text class="tag status-tag" :class="item.statusClass">{{ ORDER_STATUS[item.status] }}</text>
             <text class="muted">{{ item.createdAtText }}</text>
           </view>
           <view class="order-body" @tap="goProduct(item.productId?._id)">
@@ -235,7 +235,8 @@ async function loadOrders() {
         canApplyRefund: role.value === 'buy' && canApplyRefund(o, refund),
         peerLabel: role.value === 'buy' ? '卖家' : '买家',
         peerName: role.value === 'buy' ? o.sellerId?.nickname : o.buyerId?.nickname,
-        statusClass: o.status === 'completed' ? 'success' : o.status === 'cancelled' ? 'info' : 'warning',
+        // 勿用 info：会与本页 .info { flex:1 } 冲突，导致「已取消」被拉长
+        statusClass: o.status === 'completed' ? 'success' : o.status === 'cancelled' ? 'cancelled' : 'warning',
       }
     })
   } catch (e) {
@@ -605,6 +606,26 @@ async function cancelRefund(order) {
 }
 .status-tab.active { background: #ecf5ff; color: #409eff; }
 .order-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16rpx; }
+.status-tag {
+  flex: none;
+  flex-shrink: 0;
+  width: auto;
+  max-width: max-content;
+  white-space: nowrap;
+  letter-spacing: 0;
+}
+.status-tag.cancelled {
+  background: #f4f4f5;
+  color: #909399;
+}
+.status-tag.success {
+  background: #f0f9eb;
+  color: #67c23a;
+}
+.status-tag.warning {
+  background: #fdf6ec;
+  color: #e6a23c;
+}
 .order-body { display: flex; gap: 16rpx; }
 .thumb { width: 140rpx; height: 140rpx; border-radius: 12rpx; background: #eef2f7; flex-shrink: 0; }
 .thumb.empty { display: flex; align-items: center; justify-content: center; color: #909399; font-size: 24rpx; }

@@ -62,6 +62,9 @@ async function load() {
 }
 
 function canNavigate(n) {
+  if (n.type === 'verify_student' || n.type === 'verify_merchant' || n.type === 'verify_courier') {
+    return true
+  }
   if (!n.relatedId) return false
   return ['delivery', 'price_drop', 'order_status', 'new_order', 'trade_review', 'order_payment', 'refund'].includes(n.type)
 }
@@ -78,6 +81,12 @@ function navigatePath(n) {
     case 'order_payment':
     case 'refund':
       return { path: '/user/orders' }
+    case 'verify_student':
+      return { path: '/user/verify/student' }
+    case 'verify_merchant':
+      return { path: '/user/verify/merchant' }
+    case 'verify_courier':
+      return { path: '/user/verify/courier' }
     default:
       return null
   }

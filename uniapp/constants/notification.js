@@ -9,6 +9,9 @@ export const NOTIFICATION_TYPE_LABEL = {
   new_message: '消息',
   friend_request: '好友',
   friend_accepted: '好友',
+  verify_student: '认证',
+  verify_merchant: '认证',
+  verify_courier: '认证',
 }
 
 export const NAVIGABLE_TYPES = [
@@ -22,4 +25,7 @@ export const NAVIGABLE_TYPES = [
   'new_message',
   'friend_request',
   'friend_accepted',
+  'verify_student',
+  'verify_merchant',
+  'verify_courier',
 ]
