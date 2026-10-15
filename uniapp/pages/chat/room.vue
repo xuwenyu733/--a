@@ -5,9 +5,16 @@
       <text class="retry" @tap="loadMessages">重试</text>
     </view>
     <view v-if="productTitle" class="product-bar muted">关于：{{ productTitle }}</view>
-    <scroll-view scroll-y class="messages" :scroll-into-view="scrollInto" @scrolltoupper="loadMore">
+    <scroll-view
+      scroll-y
+      class="messages"
+      :scroll-into-view="scrollInto"
+      :scroll-with-animation="false"
+      @scrolltoupper="loadMore"
+    >
       <view v-if="loadingMore" class="load-more-top">加载中…</view>
       <view v-if="!hasMore && messages.length" class="load-more-top muted">没有更多消息</view>
+      <view v-if="!loading && !loadError && !messages.length" class="empty-tip muted">暂无消息，发一条打个招呼吧</view>
       <view v-for="msg in messages" :key="msg._id" :id="'msg-' + msg._id" class="msg" :class="{ mine: msg.mine }">
         <image v-if="msg.type === 'image' && msg.imageUrl" class="img-bubble" :src="msg.imageUrl" mode="widthFix" lazy-load @tap="previewImage(msg.imageUrl)" />
         <text v-else class="bubble">{{ msg.displayContent }}</text>
@@ -40,12 +47,14 @@ const loadError = ref('')
 const scrollInto = ref('')
 const productTitle = ref('')
 const sending = ref(false)
+const loading = ref(false)
+const loadingMore = ref(false)
+const hasMore = ref(false)
 let convId = ''
 let userId = ''
 let onReceive = null
-let hasMore = false
 let pageNum = 1
-let loadingMore = false
+let ready = false
 
 onLoad((options) => {
   convId = options.id
@@ -90,38 +99,45 @@ async function loadMessages(reset) {
   loadError.value = ''
   if (reset) {
     pageNum = 1
-    hasMore = true
+    hasMore.value = true
+    ready = false
+    loading.value = true
   }
   try {
     const pageSize = 30
     const res = await getMessages(convId, { pageSize, page: reset ? 1 : pageNum + 1 })
-    const list = (res.list || res || []).map(normalize).reverse()
+    // 后端已按时间正序（旧→新），与 PC 一致，勿再 reverse
+    const list = (res.list || []).map(normalize)
     if (reset) {
       messages.value = list
     } else {
       messages.value = [...list, ...messages.value]
     }
-    hasMore = list.length >= pageSize
+    hasMore.value = list.length >= pageSize
     if (!reset) pageNum += 1
-    if (reset) scrollBottom()
+    if (reset) {
+      scrollBottom()
+      ready = true
+    }
   } catch (e) {
     loadError.value = e.message || '加载失败'
+  } finally {
+    if (reset) loading.value = false
   }
 }
 
 async function loadMore() {
-  if (!hasMore || loadingMore) return
-  loadingMore = true
+  if (!ready || !hasMore.value || loadingMore.value || loading.value) return
+  loadingMore.value = true
   try {
-    const prevLen = messages.value.length
+    const anchor = messages.value[0]
     await loadMessages(false)
-    const newLen = messages.value.length
-    if (newLen > prevLen) {
-      const firstNew = messages.value[0]
-      if (firstNew) scrollInto.value = `msg-${firstNew._id}`
+    if (anchor) {
+      scrollInto.value = ''
+      setTimeout(() => { scrollInto.value = `msg-${anchor._id}` }, 0)
     }
   } finally {
-    loadingMore = false
+    loadingMore.value = false
   }
 }
 
@@ -224,12 +240,20 @@ async function sendImage(filePath) {
 </script>
 
 <style lang="scss" scoped>
-.room { display: flex; flex-direction: column; height: 100vh; height: 100dvh; background: #f5f7fa; }
+.room {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #f5f7fa;
+  box-sizing: border-box;
+}
 .product-bar {
+  flex-shrink: 0;
   padding: 12rpx 24rpx; background: #ecf5ff; font-size: 24rpx;
   border-bottom: 1rpx solid #d9ecff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .error-bar {
+  flex-shrink: 0;
   display: flex; align-items: center; justify-content: space-between; gap: 16rpx;
   padding: 16rpx 24rpx; background: #fef0f0; color: #f56c6c; font-size: 24rpx;
   border-bottom: 1rpx solid #fde2e2;
@@ -241,8 +265,15 @@ async function sendImage(filePath) {
   font-size: 22rpx;
   color: #909399;
 }
+.empty-tip {
+  text-align: center;
+  padding: 80rpx 24rpx;
+  font-size: 26rpx;
+}
 .messages {
   flex: 1;
+  height: 0;
+  width: 100%;
   padding: 24rpx;
   box-sizing: border-box;
 }
@@ -253,6 +284,7 @@ async function sendImage(filePath) {
 .img-bubble { max-width: 60%; border-radius: 12rpx; }
 .time { font-size: 20rpx; margin-top: 6rpx; }
 .input-bar {
+  flex-shrink: 0;
   display: flex; gap: 12rpx; align-items: center;
   padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom)); background: #fff; border-top: 1rpx solid #ebeef5;
 }
