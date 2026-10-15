@@ -280,6 +280,25 @@ async function applyPaymentSuccess(tx, transactionId) {
     relatedId: order._id,
   })
 
+  // 小程序实物电商：支付成功后自动录入发货（自提），避免资金长期冻结/支付被限
+  if (tx.channel === PAYMENT_CHANNEL.WECHAT && config.payment.mode === 'live') {
+    import('./wechatMpShipping.js')
+      .then(({ uploadShippingAfterPay }) =>
+        uploadShippingAfterPay({
+          paymentNo: tx.paymentNo,
+          transactionId: tx.transactionId,
+          channel: tx.channel,
+          buyerId: order.buyerId,
+          productTitle: order.productId?.title,
+        })
+      )
+      .catch((err) => {
+        import('../utils/logger.js').then(({ default: logger }) =>
+          logger.warn('[wechat-shipping] 异步发货录入异常', err?.message || err)
+        )
+      })
+  }
+
   return tx
 }
 
