@@ -7,11 +7,12 @@ export function config(req, res) {
 
 export async function createForOrder(req, res, next) {
   try {
-    const { channel, scene } = req.body
+    const { channel, scene, addressId } = req.body
     if (!channel) return fail(res, ErrorCodes.BAD_REQUEST, '请选择支付方式')
     const data = await paymentService.createOnlinePayment(req.params.orderId, req.user._id, {
       channel,
       scene,
+      addressId,
     })
     return success(res, data, '支付单已创建')
   } catch (err) {

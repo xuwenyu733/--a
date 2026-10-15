@@ -45,10 +45,15 @@ export async function hide(req, res, next) {
 
 export async function markPaid(req, res, next) {
   try {
-    const order = await orderService.markBuyerPaid(req.params.id, req.user._id)
+    const order = await orderService.markBuyerPaid(req.params.id, req.user._id, {
+      addressId: req.body?.addressId,
+    })
     return success(res, order, '已标记付款')
   } catch (err) {
-    if (err.code) return fail(res, err.code, err.message, err.code === 40400 ? 404 : 403)
+    if (err.code) {
+      const status = err.code === 40400 ? 404 : err.code >= 40300 ? 403 : 400
+      return fail(res, err.code, err.message, status)
+    }
     next(err)
   }
 }

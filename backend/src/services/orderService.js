@@ -150,7 +150,7 @@ export async function hideOrder(orderId, userId) {
   return order
 }
 
-export async function markBuyerPaid(orderId, userId) {
+export async function markBuyerPaid(orderId, userId, { addressId } = {}) {
   const order = await Order.findOne(activeOrderFilter({ _id: orderId })).populate(
     'productId',
     'title'
@@ -171,6 +171,8 @@ export async function markBuyerPaid(orderId, userId) {
     err.code = payCheck.code
     throw err
   }
+  const { bindShippingAddressBeforePay } = await import('../utils/orderShipping.js')
+  await bindShippingAddressBeforePay(order, userId, addressId)
   order.paymentStatus = 'buyer_marked'
   order.buyerPaidAt = new Date()
   await order.save()

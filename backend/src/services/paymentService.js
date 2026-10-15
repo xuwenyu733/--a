@@ -105,7 +105,7 @@ export async function getActivePayment(orderId, userId) {
   return { order, payment: tx }
 }
 
-export async function createOnlinePayment(orderId, buyerId, { channel, scene } = {}) {
+export async function createOnlinePayment(orderId, buyerId, { channel, scene, addressId } = {}) {
   const order = await Order.findOne(activeOrderFilter({ _id: orderId })).populate(
     'productId',
     'title'
@@ -166,6 +166,12 @@ export async function createOnlinePayment(orderId, buyerId, { channel, scene } =
       channel === PAYMENT_CHANNEL.WECHAT && config.payment.mode === 'live' && !openid
         ? 'native'
         : 'jsapi'
+  }
+
+  // 小程序 JSAPI 支付前必须绑定收货地址；PC Native 扫码不强制
+  if (payScene === 'jsapi') {
+    const { bindShippingAddressBeforePay } = await import('../utils/orderShipping.js')
+    await bindShippingAddressBeforePay(order, buyerId, addressId)
   }
 
   if (

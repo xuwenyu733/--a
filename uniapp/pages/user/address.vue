@@ -7,7 +7,7 @@
       empty-text="暂无地址，点击下方按钮添加"
       @retry="load"
     />
-    <view v-for="addr in list" :key="addr._id" class="card addr-card" @tap="edit(addr)">
+    <view v-for="addr in list" :key="addr._id" class="card addr-card" @tap="onTapAddr(addr)">
       <view class="addr-head">
         <text class="name">{{ addr.name }}</text>
         <text class="phone">{{ addr.phone }}</text>
@@ -15,7 +15,9 @@
       </view>
       <text class="full-addr muted">{{ addr.region }} {{ addr.detail }}</text>
       <view class="addr-actions">
+        <text v-if="fromPay" class="action-link" @tap.stop="pickForPay(addr)">选用此地址</text>
         <text v-if="!addr.isDefault" class="action-link" @tap.stop="setDefault(addr._id)">设默认</text>
+        <text class="action-link" @tap.stop="edit(addr)">编辑</text>
         <text class="action-link danger" @tap.stop="remove(addr._id)">删除</text>
       </view>
     </view>
@@ -43,7 +45,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getAddresses, createAddress, updateAddress, deleteAddress, setDefaultAddress } from '@/api/address'
 import { ensureLogin } from '@/utils/auth'
 import LoadState from '@/components/LoadState.vue'
@@ -55,10 +57,36 @@ const list = ref([])
 const showForm = ref(false)
 const editId = ref('')
 const form = ref({ name: '', phone: '', region: '', detail: '' })
+const fromPay = ref(false)
+
+onLoad((query) => {
+  fromPay.value = query?.from === 'pay'
+  if (fromPay.value) {
+    uni.setNavigationBarTitle({ title: '选择收货地址' })
+  }
+})
 
 onShow(() => {
   if (ensureLogin()) load()
 })
+
+function onTapAddr(addr) {
+  if (fromPay.value) {
+    pickForPay(addr)
+    return
+  }
+  edit(addr)
+}
+
+async function pickForPay(addr) {
+  try {
+    if (!addr.isDefault) await setDefaultAddress(addr._id)
+    uni.showToast({ title: '已选择', icon: 'success' })
+    setTimeout(() => uni.navigateBack(), 400)
+  } catch (e) {
+    uni.showToast({ title: e.message || '选择失败', icon: 'none' })
+  }
+}
 
 async function load() {
   loading.value = true
@@ -108,6 +136,10 @@ async function save() {
     }
     uni.showToast({ title: '已保存', icon: 'success' })
     closeForm()
+    if (fromPay.value && !editId.value) {
+      setTimeout(() => uni.navigateBack(), 400)
+      return
+    }
     load()
   } catch (e) {
     uni.showToast({ title: e.message || '保存失败', icon: 'none' })

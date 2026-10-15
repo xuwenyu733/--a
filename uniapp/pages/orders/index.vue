@@ -46,6 +46,7 @@
               <text class="peer muted">{{ item.peerLabel }}：{{ item.peerName }}</text>
               <text v-if="item.paymentHint" class="pay-hint">{{ item.paymentHint }}</text>
               <text v-if="item.refundHint" class="refund-hint">{{ item.refundHint }}</text>
+              <text v-if="item.shippingText" class="ship-hint muted">{{ item.shippingText }}</text>
             </view>
           </view>
           <view class="actions">
@@ -84,6 +85,12 @@
               <radio :value="c.id" :checked="channel === c.id" /> {{ c.name }}
             </label>
           </radio-group>
+          <view v-if="payAddress" class="pay-addr" @tap="goChangeAddress">
+            <text class="pay-addr-label">收货地址</text>
+            <text class="pay-addr-text">{{ payAddress.name }} {{ payAddress.phone }}</text>
+            <text class="pay-addr-text muted">{{ payAddress.region }} {{ payAddress.detail }}</text>
+            <text class="pay-addr-link">更换</text>
+          </view>
           <view v-if="activePayment" class="pay-meta muted">
             支付单 {{ activePayment.paymentNo }} · ¥{{ activePayment.amount }}
           </view>
@@ -103,6 +110,12 @@
           <button v-else type="primary" :loading="paying" @tap="createPay">重新发起</button>
         </template>
         <template v-else>
+          <view v-if="payAddress" class="pay-addr" @tap="goChangeAddress">
+            <text class="pay-addr-label">收货地址</text>
+            <text class="pay-addr-text">{{ payAddress.name }} {{ payAddress.phone }}</text>
+            <text class="pay-addr-text muted">{{ payAddress.region }} {{ payAddress.detail }}</text>
+            <text class="pay-addr-link">更换</text>
+          </view>
           <image v-if="sellerQr" class="pay-qr" :src="sellerQr" mode="aspectFit" @tap="previewQr" />
           <text v-else class="muted manual-tip">卖家尚未上传收款码，请通过「联系对方」协商，或改用在线支付。</text>
           <text class="muted manual-tip">扫码转账后点击「我已付款」，等待卖家确认收款。</text>
@@ -151,6 +164,7 @@ import { onShow } from '@dcloudio/uni-app'
 import { list as listOrders, updateStatus as updateOrderStatus, markPaid, confirmPayment, hideOrder } from '@/api/order'
 import { createConversation } from '@/api/chat'
 import { getOrderReviewSummary } from '@/api/review'
+import { getAddresses } from '@/api/address'
 import * as paymentApi from '@/api/payment'
 import * as refundApi from '@/api/refund'
 import { ensureLogin } from '@/utils/auth'
@@ -179,6 +193,7 @@ const payConfig = ref({
   domainReady: false,
   tip: '',
 })
+const payAddress = ref(null)
 const refundVisible = ref(false)
 const refundMode = ref('apply')
 const refundOrder = ref(null)
@@ -199,8 +214,16 @@ const statusOptions = [
   { value: 'cancelled', label: '已取消' },
 ]
 
-onShow(() => {
-  if (ensureLogin()) loadOrders()
+onShow(async () => {
+  if (!ensureLogin()) return
+  await loadOrders()
+  if (payVisible.value && payOrder.value) {
+    try {
+      await ensurePayAddress()
+    } catch {
+      /* ignore */
+    }
+  }
 })
 
 function switchRole(r) {
@@ -225,8 +248,14 @@ async function loadOrders() {
     const refundMap = await loadRefundMap()
     list.value = orders.map((o) => {
       const refund = refundMap[String(o._id)] || null
+      const ship = o.shippingAddress
+      const shippingText =
+        ship?.name && ship?.detail
+          ? `地址：${ship.name} ${ship.phone} ${ship.region || ''} ${ship.detail}`
+          : ''
       return {
         ...o,
+        shippingText,
         cover: getFileUrl(o.productId?.images?.[0]),
         createdAtText: formatTime(o.createdAt),
         paymentHint: PAYMENT_STATUS[o.paymentStatus] || '',
@@ -319,9 +348,40 @@ function updateStatus(id, status) {
   })
 }
 
+async function ensurePayAddress() {
+  const res = await getAddresses()
+  const list = res.list || []
+  if (!list.length) {
+    uni.showModal({
+      title: '需要收货地址',
+      content: '支付前请先添加收货地址（用于面交或配送）',
+      confirmText: '去添加',
+      success: (r) => {
+        if (r.confirm) {
+          uni.navigateTo({ url: '/pages/user/address?from=pay' })
+        }
+      },
+    })
+    return null
+  }
+  const preferredId = payAddress.value?._id
+  const picked =
+    (preferredId && list.find((a) => a._id === preferredId)) ||
+    list.find((a) => a.isDefault) ||
+    list[0]
+  payAddress.value = picked
+  return picked
+}
+
+function goChangeAddress() {
+  uni.navigateTo({ url: '/pages/user/address?from=pay' })
+}
+
 async function markManualPaid(id) {
   try {
-    await markPaid(id)
+    const addr = await ensurePayAddress()
+    if (!addr) return
+    await markPaid(id, { addressId: addr._id })
     uni.showToast({ title: '已标记付款', icon: 'success' })
     closePay()
     loadOrders()
@@ -367,7 +427,10 @@ function removeRecord(id) {
 async function openPay(order) {
   payOrder.value = null
   activePayment.value = null
+  payAddress.value = null
   try {
+    const addr = await ensurePayAddress()
+    if (!addr) return
     const cfg = await paymentApi.getConfig()
     payConfig.value = {
       enabled: !!cfg.enabled,
@@ -399,7 +462,12 @@ async function createPay() {
   if (paying.value) return
   paying.value = true
   try {
-    const res = await paymentApi.create(payOrder.value._id, { channel: channel.value })
+    const addr = await ensurePayAddress()
+    if (!addr) return
+    const res = await paymentApi.create(payOrder.value._id, {
+      channel: channel.value,
+      addressId: addr._id,
+    })
     activePayment.value = {
       ...res.payment,
       payParams: res.payment?.payParams || null,
@@ -467,6 +535,7 @@ async function waitUntilPaid(paymentNo, tries = 8) {
 }
 
 function closePay() {
+  payAddress.value = null
   payVisible.value = false
   payOrder.value = null
   activePayment.value = null
@@ -672,5 +741,18 @@ async function cancelRefund(order) {
   color: #909399;
 }
 .pay-meta { display: block; margin: 8rpx 0 16rpx; font-size: 22rpx; word-break: break-all; }
+.pay-addr {
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+  margin: 12rpx 0 20rpx;
+  padding: 16rpx;
+  background: #f7f8fa;
+  border-radius: 12rpx;
+}
+.pay-addr-label { font-size: 24rpx; color: #333; font-weight: 600; }
+.pay-addr-text { font-size: 24rpx; color: #333; line-height: 1.4; }
+.pay-addr-link { font-size: 22rpx; color: #07c160; margin-top: 4rpx; }
+.ship-hint { display: block; margin-top: 8rpx; font-size: 22rpx; line-height: 1.4; }
 .pay-panel button { margin-top: 16rpx; }
 </style>

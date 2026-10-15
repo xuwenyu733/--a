@@ -32,6 +32,14 @@ const orderSchema = new mongoose.Schema(
     },
     latestPaymentNo: { type: String, default: null },
     buyerPaidAt: { type: Date, default: null },
+    /** 买家收货/面交地址快照（支付前必填） */
+    shippingAddress: {
+      addressId: { type: mongoose.Schema.Types.ObjectId, ref: 'UserAddress', default: null },
+      name: { type: String, default: '' },
+      phone: { type: String, default: '' },
+      region: { type: String, default: '' },
+      detail: { type: String, default: '' },
+    },
   },
   { timestamps: true }
 )
