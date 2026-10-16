@@ -24,6 +24,11 @@ export function orderStillPayable(order) {
   return true
 }
 
+export function hasShippingAddress(order) {
+  const s = order?.shippingAddress
+  return !!(s && String(s.phone || '').trim() && String(s.detail || '').trim())
+}
+
 /**
  * 已验签回调的处置。credit=入账；reconcile=异常通道（不入账）；ack=幂等成功。
  */
@@ -46,6 +51,9 @@ export function decidePaymentNotify({
         action: 'reconcile',
         reason: txStatus === PAYMENT_TX_STATUS.EXPIRED ? 'expired_not_payable' : 'order_not_payable',
       }
+    }
+    if (!hasShippingAddress(order)) {
+      return { action: 'reconcile', reason: 'missing_shipping_address' }
     }
     return { action: 'credit' }
   }

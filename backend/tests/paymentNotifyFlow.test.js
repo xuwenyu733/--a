@@ -89,6 +89,7 @@ describe('processVerifiedPaymentNotify', () => {
       _id: 'order1',
       status: 'confirmed',
       paymentStatus: 'pending_online',
+      shippingAddress: { name: '张三', phone: '13800138000', detail: '1号楼101' },
       buyerId: 'buyer',
       sellerId: 'seller',
       save: vi.fn(async () => {}),

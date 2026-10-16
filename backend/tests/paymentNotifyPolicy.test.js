@@ -8,7 +8,11 @@ import {
   wechatFeeMatches,
 } from '../src/services/paymentNotifyPolicy.js'
 
-const payable = { status: ORDER_STATUS.CONFIRMED, paymentStatus: 'pending_online' }
+const payable = {
+  status: ORDER_STATUS.CONFIRMED,
+  paymentStatus: 'pending_online',
+  shippingAddress: { name: '张三', phone: '13800138000', detail: '1号楼101' },
+}
 
 describe('payment notify policy', () => {
   it('rejects mismatched total_fee so the order is not credited', () => {
@@ -22,6 +26,18 @@ describe('payment notify policy', () => {
     })
     expect(decision.action).toBe('reconcile')
     expect(decision.reason).toBe('amount_mismatch')
+  })
+
+  it('does not credit when the order has no shipping address', () => {
+    const decision = decidePaymentNotify({
+      channel: PAYMENT_CHANNEL.WECHAT,
+      txStatus: PAYMENT_TX_STATUS.PENDING,
+      amountYuan: 50,
+      totalFeeFen: 5000,
+      order: { status: ORDER_STATUS.CONFIRMED, paymentStatus: 'pending_online' },
+    })
+    expect(decision.action).toBe('reconcile')
+    expect(decision.reason).toBe('missing_shipping_address')
   })
 
   it('credits when total_fee matches pending tx', () => {

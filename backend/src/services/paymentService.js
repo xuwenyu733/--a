@@ -14,6 +14,7 @@ import User from '../models/User.js'
 import logger from '../utils/logger.js'
 import {
   decidePaymentNotify,
+  hasShippingAddress,
   shippingUpdateFromResult,
   SHIPPING_MAX_ATTEMPTS,
 } from './paymentNotifyPolicy.js'
@@ -178,11 +179,9 @@ export async function createOnlinePayment(orderId, buyerId, { channel, scene, ad
         : 'jsapi'
   }
 
-  // 小程序 JSAPI 支付前必须绑定收货地址；PC Native 扫码不强制
-  if (payScene === 'jsapi') {
-    const { bindShippingAddressBeforePay } = await import('../utils/orderShipping.js')
-    await bindShippingAddressBeforePay(order, buyerId, addressId)
-  }
+  // 在线支付（小程序 JSAPI 与 PC 扫码）发起前必须已选定收货地址
+  const { bindShippingAddressBeforePay } = await import('../utils/orderShipping.js')
+  await bindShippingAddressBeforePay(order, buyerId, addressId)
 
   if (
     channel === PAYMENT_CHANNEL.WECHAT &&
@@ -325,6 +324,10 @@ async function applyPaidSideEffects(tx) {
   )
   if (!order || order.status !== 'confirmed' || order.paymentStatus === 'paid_online') {
     await flagPaymentReconciliation(tx, 'paid_but_order_not_updated', tx.notifyRaw)
+    return tx
+  }
+  if (!hasShippingAddress(order)) {
+    await flagPaymentReconciliation(tx, 'missing_shipping_address', tx.notifyRaw)
     return tx
   }
 
