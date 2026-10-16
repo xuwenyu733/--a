@@ -6,10 +6,17 @@ import {
   PAYMENT_CHANNEL_LABELS,
   PAYMENT_TX_STATUS,
 } from '../constants/payment.js'
+import { ROLES } from '../constants/roles.js'
 import { activeOrderFilter } from '../utils/orderQuery.js'
 import { notifyUser } from './notificationService.js'
 import { generatePaymentNo, getPaymentGateway, isNotifyDomainReady } from './payment/paymentGateway.js'
 import User from '../models/User.js'
+import logger from '../utils/logger.js'
+import {
+  decidePaymentNotify,
+  shippingUpdateFromResult,
+  SHIPPING_MAX_ATTEMPTS,
+} from './paymentNotifyPolicy.js'
 import {
   validateCreateOnlinePayment,
   validateSimulateSandboxPayment,
@@ -72,10 +79,13 @@ export function getPaymentConfig(user) {
 
 async function expireStalePendingPayments(orderId) {
   const now = new Date()
-  await PaymentTransaction.updateMany(
-    { orderId, status: PAYMENT_TX_STATUS.PENDING, expiredAt: { $lt: now } },
-    { $set: { status: PAYMENT_TX_STATUS.EXPIRED } }
-  )
+  const filter = { status: PAYMENT_TX_STATUS.PENDING, expiredAt: { $lt: now } }
+  if (orderId) filter.orderId = orderId
+  await PaymentTransaction.updateMany(filter, { $set: { status: PAYMENT_TX_STATUS.EXPIRED } })
+}
+
+export async function expireAllStalePendingPayments() {
+  await expireStalePendingPayments()
 }
 
 export async function getActivePayment(orderId, userId) {
@@ -246,19 +256,77 @@ export async function getPaymentByNo(paymentNo, userId) {
   return tx
 }
 
-async function applyPaymentSuccess(tx, transactionId) {
-  if (tx.status === PAYMENT_TX_STATUS.PAID) return tx
+async function flagPaymentReconciliation(tx, reason, notifyRaw) {
+  await PaymentTransaction.updateOne(
+    { _id: tx._id },
+    {
+      $set: {
+        reconciliationStatus: 'needs_review',
+        reconciliationReason: reason,
+        ...(notifyRaw !== undefined ? { notifyRaw } : {}),
+      },
+    }
+  )
+  logger.error('[payment-reconcile] 支付到账无法自动入账，需人工核对/退款', {
+    paymentNo: tx.paymentNo,
+    orderId: String(tx.orderId),
+    status: tx.status,
+    amount: tx.amount,
+    reason,
+  })
+  const admins = await User.find({ role: ROLES.SUPER_ADMIN }).select('_id').lean()
+  await Promise.all(
+    admins.map((admin) =>
+      notifyUser(admin._id, {
+        type: 'payment_reconcile',
+        title: '支付对账异常',
+        content: `支付单 ${tx.paymentNo} 到账异常（${reason}），金额 ¥${tx.amount}。系统未自动入账，请人工核对并按需退款。`,
+        relatedId: tx.orderId,
+      })
+    )
+  )
+}
 
-  tx.status = PAYMENT_TX_STATUS.PAID
-  tx.transactionId = transactionId || `sandbox_${tx.paymentNo}`
-  tx.paidAt = new Date()
-  await tx.save()
+async function persistShippingResult(paymentNo, attemptsBefore, result) {
+  const patch = shippingUpdateFromResult(attemptsBefore, result)
+  await PaymentTransaction.updateOne({ paymentNo }, { $set: patch })
+  return patch
+}
 
+async function uploadAndPersistShipping(tx, productTitle) {
+  if (tx.channel !== PAYMENT_CHANNEL.WECHAT || config.payment.mode !== 'live') {
+    await PaymentTransaction.updateOne(
+      { paymentNo: tx.paymentNo },
+      { $set: { shippingUploadStatus: 'skipped', shippingNextRetryAt: null } }
+    )
+    return
+  }
+  const { uploadShippingAfterPay } = await import('./wechatMpShipping.js')
+  let result
+  try {
+    result = await uploadShippingAfterPay({
+      paymentNo: tx.paymentNo,
+      transactionId: tx.transactionId,
+      channel: tx.channel,
+      buyerId: tx.buyerId,
+      productTitle,
+    })
+  } catch (err) {
+    result = { ok: false, errmsg: err?.message || 'upload_exception' }
+  }
+  const fresh = await PaymentTransaction.findOne({ paymentNo: tx.paymentNo }).select('shippingUploadAttempts')
+  await persistShippingResult(tx.paymentNo, fresh?.shippingUploadAttempts || 0, result)
+}
+
+async function applyPaidSideEffects(tx) {
   const order = await Order.findOne(activeOrderFilter({ _id: tx.orderId })).populate(
     'productId',
     'title'
   )
-  if (!order) return tx
+  if (!order || order.status !== 'confirmed' || order.paymentStatus === 'paid_online') {
+    await flagPaymentReconciliation(tx, 'paid_but_order_not_updated', tx.notifyRaw)
+    return tx
+  }
 
   order.paymentStatus = 'paid_online'
   order.paymentMethod = tx.channel
@@ -280,26 +348,41 @@ async function applyPaymentSuccess(tx, transactionId) {
     relatedId: order._id,
   })
 
-  // 小程序实物电商：支付成功后自动录入发货（自提），避免资金长期冻结/支付被限
-  if (tx.channel === PAYMENT_CHANNEL.WECHAT && config.payment.mode === 'live') {
-    import('./wechatMpShipping.js')
-      .then(({ uploadShippingAfterPay }) =>
-        uploadShippingAfterPay({
-          paymentNo: tx.paymentNo,
-          transactionId: tx.transactionId,
-          channel: tx.channel,
-          buyerId: order.buyerId,
-          productTitle: order.productId?.title,
-        })
-      )
-      .catch((err) => {
-        import('../utils/logger.js').then(({ default: logger }) =>
-          logger.warn('[wechat-shipping] 异步发货录入异常', err?.message || err)
-        )
-      })
-  }
-
+  await uploadAndPersistShipping(tx, order.productId?.title)
   return tx
+}
+
+/**
+ * 原子抢占：仅 PENDING/指定状态能改成 PAID。抢不到则幂等返回已有单据。
+ */
+async function claimPaymentSuccess(paymentNo, transactionId, fromStatuses, notifyRaw) {
+  const paidAt = new Date()
+  const claimed = await PaymentTransaction.findOneAndUpdate(
+    { paymentNo, status: { $in: fromStatuses } },
+    {
+      $set: {
+        status: PAYMENT_TX_STATUS.PAID,
+        transactionId: transactionId || `sandbox_${paymentNo}`,
+        paidAt,
+        ...(notifyRaw !== undefined ? { notifyRaw } : {}),
+      },
+    },
+    { new: true }
+  )
+  if (!claimed) return { claimed: null, tx: await PaymentTransaction.findOne({ paymentNo }) }
+  await applyPaidSideEffects(claimed)
+  return { claimed, tx: claimed }
+}
+
+async function applyPaymentSuccess(tx, transactionId) {
+  if (tx.status === PAYMENT_TX_STATUS.PAID) return tx
+  const { tx: next } = await claimPaymentSuccess(
+    tx.paymentNo,
+    transactionId,
+    [PAYMENT_TX_STATUS.PENDING],
+    undefined
+  )
+  return next || tx
 }
 
 export async function simulateSandboxPayment(paymentNo, userId) {
@@ -332,6 +415,44 @@ export async function simulateSandboxPayment(paymentNo, userId) {
   return formatPaymentResponse(tx, order, { sandbox: true })
 }
 
+/**
+ * 已验签回调的入账决策。供单测直接调用，不依赖 PAYMENT_MODE。
+ */
+export async function processVerifiedPaymentNotify({
+  channel,
+  paymentNo,
+  transactionId,
+  totalFeeFen,
+  notifyRaw,
+}) {
+  const tx = await PaymentTransaction.findOne({ paymentNo, channel })
+  if (!tx) return { ok: true, message: 'ignored', credited: false }
+
+  const order = await Order.findOne(activeOrderFilter({ _id: tx.orderId }))
+  const decision = decidePaymentNotify({
+    channel,
+    txStatus: tx.status,
+    amountYuan: tx.amount,
+    totalFeeFen,
+    order,
+  })
+
+  if (decision.action === 'reconcile') {
+    await flagPaymentReconciliation(tx, decision.reason, notifyRaw)
+    return { ok: true, message: decision.reason, credited: false }
+  }
+  if (decision.action !== 'credit') {
+    return { ok: true, message: decision.reason, credited: false }
+  }
+
+  const fromStatuses =
+    tx.status === PAYMENT_TX_STATUS.EXPIRED
+      ? [PAYMENT_TX_STATUS.EXPIRED]
+      : [PAYMENT_TX_STATUS.PENDING]
+  const { claimed } = await claimPaymentSuccess(paymentNo, transactionId, fromStatuses, notifyRaw)
+  return { ok: true, message: claimed ? 'success' : 'already_paid', credited: Boolean(claimed) }
+}
+
 export async function handlePaymentNotify(channel, body) {
   if (config.payment.mode === 'sandbox') {
     return { ok: false, message: 'sandbox 模式请使用模拟支付接口' }
@@ -341,13 +462,42 @@ export async function handlePaymentNotify(channel, body) {
   if (!result.valid || !result.paymentNo) {
     return { ok: false, message: 'invalid notify' }
   }
-  const tx = await PaymentTransaction.findOne({ paymentNo: result.paymentNo, channel })
-  if (!tx || tx.status !== PAYMENT_TX_STATUS.PENDING) {
-    return { ok: true, message: 'ignored' }
+  const totalFeeFen =
+    result.totalFeeFen !== undefined && result.totalFeeFen !== null
+      ? result.totalFeeFen
+      : result.data?.total_fee
+  return processVerifiedPaymentNotify({
+    channel,
+    paymentNo: result.paymentNo,
+    transactionId: result.transactionId,
+    totalFeeFen,
+    notifyRaw: body,
+  })
+}
+
+export async function retryFailedShippingUploads(limit = 20) {
+  const now = new Date()
+  const rows = await PaymentTransaction.find({
+    status: PAYMENT_TX_STATUS.PAID,
+    channel: PAYMENT_CHANNEL.WECHAT,
+    shippingUploadStatus: { $in: ['pending', 'failed'] },
+    shippingUploadAttempts: { $lt: SHIPPING_MAX_ATTEMPTS },
+    $or: [{ shippingNextRetryAt: null }, { shippingNextRetryAt: { $lte: now } }],
+  })
+    .sort({ shippingNextRetryAt: 1 })
+    .limit(limit)
+
+  for (const tx of rows) {
+    const order = await Order.findById(tx.orderId).populate('productId', 'title')
+    await uploadAndPersistShipping(tx, order?.productId?.title)
   }
-  tx.notifyRaw = body
-  await applyPaymentSuccess(tx, result.transactionId)
-  return { ok: true, message: 'success' }
+  return rows.length
+}
+
+export async function runPaymentMaintenance() {
+  await expireAllStalePendingPayments()
+  const retried = await retryFailedShippingUploads()
+  return { retried }
 }
 
 export async function getSandboxPayPage(paymentNo) {

@@ -8,6 +8,7 @@ import { initRedisBridge, closeRedisBridge } from './websocket/redisBridge.js'
 import { connectionManager } from './websocket/connectionManager.js'
 import { printLanUrls } from './utils/network.js'
 import logger from './utils/logger.js'
+import { startPaymentScheduler, stopPaymentScheduler } from './jobs/paymentScheduler.js'
 
 const isProd = process.env.NODE_ENV === 'production'
 
@@ -51,10 +52,12 @@ server.listen(config.port, HOST, () => {
     printLanUrls(config.port)
     logger.info('前端局域网访问请在本机运行: cd frontend && npm run dev:lan')
   }
+  startPaymentScheduler()
 })
 
 function gracefulShutdown(signal) {
   logger.info(`${signal} 收到，正在关闭服务...`)
+  stopPaymentScheduler()
   server.close(async () => {
     logger.info('HTTP 服务已关闭')
     await closeRedisBridge()

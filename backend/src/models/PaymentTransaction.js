@@ -28,10 +28,23 @@ const paymentTransactionSchema = new mongoose.Schema(
     paidAt: { type: Date, default: null },
     expiredAt: { type: Date, required: true },
     notifyRaw: { type: mongoose.Schema.Types.Mixed, default: null },
+    /** none | needs_review — 金额不符、过期后不可入账、取消单到账等，需人工退款 */
+    reconciliationStatus: { type: String, enum: ['none', 'needs_review'], default: 'none' },
+    reconciliationReason: { type: String, default: '' },
+    /** none | pending | success | failed | exhausted | skipped */
+    shippingUploadStatus: {
+      type: String,
+      enum: ['none', 'pending', 'success', 'failed', 'exhausted', 'skipped'],
+      default: 'none',
+    },
+    shippingUploadAttempts: { type: Number, default: 0 },
+    shippingUploadError: { type: String, default: '' },
+    shippingNextRetryAt: { type: Date, default: null },
   },
   { timestamps: true }
 )
 
 paymentTransactionSchema.index({ orderId: 1, status: 1, createdAt: -1 })
+paymentTransactionSchema.index({ shippingUploadStatus: 1, shippingNextRetryAt: 1 })
 
 export default mongoose.model('PaymentTransaction', paymentTransactionSchema)

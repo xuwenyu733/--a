@@ -213,6 +213,7 @@ export function verifyWechatPayNotify(body, apiKey) {
     valid: true,
     paymentNo: data.out_trade_no || null,
     transactionId: data.transaction_id || null,
+    totalFeeFen: data.total_fee === undefined || data.total_fee === '' ? null : Number(data.total_fee),
     data,
   }
 }
