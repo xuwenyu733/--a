@@ -26,4 +26,19 @@ describe('resolveUploadUrls', () => {
   it('leaves non-upload paths unchanged', () => {
     expect(resolveUploadUrls('/api/health')).toBe('/api/health')
   })
+
+  it('stringifies ObjectId-like conversationId instead of emptying it', () => {
+    const oid = {
+      constructor: { name: 'ObjectId' },
+      toHexString() {
+        return '507f1f77bcf86cd799439011'
+      },
+      toString() {
+        return '507f1f77bcf86cd799439011'
+      },
+    }
+    const out = resolveUploadUrls({ conversationId: oid, message: { _id: oid, content: 'hi' } })
+    expect(out.conversationId).toBe('507f1f77bcf86cd799439011')
+    expect(out.message._id).toBe('507f1f77bcf86cd799439011')
+  })
 })

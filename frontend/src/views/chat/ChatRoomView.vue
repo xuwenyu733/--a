@@ -168,7 +168,12 @@ function prevMatch() {
   jumpToMatch(prev)
 }
 
-const conversationId = computed(() => route.params.conversationId)
+function asObjectId(value) {
+  const s = value?.toString?.() || value
+  return typeof s === 'string' && /^[a-fA-F0-9]{24}$/.test(s) ? s : ''
+}
+
+const conversationId = computed(() => asObjectId(route.params.conversationId))
 
 function isMine(msg) {
   const sid = msg.senderId?._id || msg.senderId
@@ -181,6 +186,10 @@ function formatTime(t) {
 }
 
 async function loadMessages() {
+  if (!conversationId.value) {
+    error.value = '会话不存在或链接无效'
+    return
+  }
   loading.value = true
   error.value = ''
   try {
@@ -295,9 +304,9 @@ onMounted(async () => {
   await loadMessages()
 
   offReceive = chatStore.ws.on(WS_EVENTS.MESSAGE_RECEIVE, ({ message, conversationId: cid }) => {
-    if (cid === conversationId.value) {
+    if (asObjectId(cid) === conversationId.value) {
       appendMessage(message)
-      if (!isMine(message)) {
+      if (!isMine(message) && conversationId.value) {
         chatApi.markRead(conversationId.value).then((res) => {
           applyReadReceipts(res?.messageIds)
         })
@@ -310,13 +319,13 @@ onMounted(async () => {
   })
 
   offRead = chatStore.ws.on(WS_EVENTS.MESSAGE_READ, (data) => {
-    if (data.conversationId === conversationId.value) {
+    if (asObjectId(data.conversationId) === conversationId.value) {
       applyReadReceipts(data.messageIds)
     }
   })
 
   offTyping = chatStore.ws.on(WS_EVENTS.TYPING, (data) => {
-    if (data.conversationId === conversationId.value) {
+    if (asObjectId(data.conversationId) === conversationId.value) {
       peerTyping.value = data.typing
     }
   })

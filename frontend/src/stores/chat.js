@@ -31,8 +31,13 @@ export const useChatStore = defineStore('chat', () => {
     const senderId = message.senderId?._id?.toString?.() || message.senderId?.toString?.()
     const conv = conversations.value.find((c) => c._id === conversationId || c._id?.toString?.() === conversationId)
     if (!conv) {
+      const cid = conversationId?.toString?.() || conversationId
+      if (!cid || typeof cid !== 'string' || !/^[a-fA-F0-9]{24}$/.test(cid)) {
+        fetchConversations()
+        return
+      }
       chatApi
-        .getConversation(conversationId)
+        .getConversation(cid)
         .then((fetched) => upsertConversation(fetched))
         .catch((err) => {
           console.warn('getConversation failed, refetching list', err)

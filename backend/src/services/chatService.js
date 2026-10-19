@@ -185,7 +185,7 @@ export async function sendMessage({ conversationId, senderId, type = 'text', con
 
   const payload = {
     message: populated,
-    conversationId: conversation._id,
+    conversationId: conversation._id.toString(),
   }
 
   connectionManager.sendToUser(receiverId, WS_EVENTS.MESSAGE_RECEIVE, payload)
