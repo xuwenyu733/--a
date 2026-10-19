@@ -50,6 +50,7 @@ const routes = [
       { path: 'user/orders', component: () => import('@/views/order/OrdersView.vue'), meta: { auth: true } },
       { path: 'cart', component: () => import('@/views/cart/CartView.vue'), meta: { auth: true, roles: [ROLES.STUDENT] } },
       { path: 'user/settings', component: () => import('@/views/user/UserSettingsView.vue'), meta: { auth: true } },
+      { path: 'user/addresses', component: () => import('@/views/user/AddressesView.vue'), meta: { auth: true } },
       { path: 'user/verify/student', component: () => import('@/views/user/StudentVerifyView.vue'), meta: { auth: true, roles: [ROLES.STUDENT] } },
       { path: 'user/verify/merchant', component: () => import('@/views/user/MerchantVerifyView.vue'), meta: { auth: true, roles: [ROLES.STUDENT] } },
       { path: 'shop/:userId', component: () => import('@/views/shop/ShopView.vue') },

@@ -49,6 +49,7 @@
                 <el-dropdown-item @click="$router.push('/cart')">购物车</el-dropdown-item>
                 <el-dropdown-item @click="$router.push('/user/orders')">我的订单</el-dropdown-item>
                 <el-dropdown-item @click="$router.push('/user/settings')">账号设置</el-dropdown-item>
+                <el-dropdown-item @click="$router.push('/user/addresses')">收货地址</el-dropdown-item>
                 <el-dropdown-item @click="$router.push('/delivery')">校园跑腿</el-dropdown-item>
                 <el-dropdown-item @click="$router.push('/resume/build')">AI 简历创作</el-dropdown-item>
                 <el-dropdown-item @click="$router.push('/user/verify/courier')">骑手认证</el-dropdown-item>

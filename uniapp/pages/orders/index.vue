@@ -348,6 +348,22 @@ function updateStatus(id, status) {
   })
 }
 
+function handleMissingAddressError(e) {
+  const msg = e?.message || ''
+  if (!/收货地址/.test(msg)) return false
+  uni.showModal({
+    title: '需要收货地址',
+    content: msg || '支付前请先添加收货地址后再支付',
+    confirmText: '去添加',
+    success: (r) => {
+      if (r.confirm) {
+        uni.navigateTo({ url: '/pages/user/address?from=pay' })
+      }
+    },
+  })
+  return true
+}
+
 async function ensurePayAddress() {
   const res = await getAddresses()
   const list = res.list || []
@@ -386,6 +402,7 @@ async function markManualPaid(id) {
     closePay()
     loadOrders()
   } catch (e) {
+    if (handleMissingAddressError(e)) return
     uni.showToast({ title: e.message || '失败', icon: 'none' })
   }
 }
@@ -452,6 +469,7 @@ async function openPay(order) {
     payVisible.value = true
   } catch (err) {
     payOrder.value = null
+    if (handleMissingAddressError(err)) return
     uni.showToast({ title: err.message || '失败', icon: 'none' })
   }
 }
@@ -485,6 +503,7 @@ async function createPay() {
       icon: 'none',
     })
   } catch (e) {
+    if (handleMissingAddressError(e)) return
     uni.showToast({ title: e.message || '失败', icon: 'none' })
   } finally {
     paying.value = false

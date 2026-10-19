@@ -102,10 +102,27 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import QRCode from 'qrcode'
 import * as paymentApi from '@/api/payment'
 import { getFileUrl } from '@/utils/fileUrl'
+
+const router = useRouter()
+
+function apiErrorMessage(e, fallback = '请求失败') {
+  return e?.response?.data?.message || e?.message || fallback
+}
+
+function isMissingAddressError(e) {
+  const msg = apiErrorMessage(e, '')
+  return /收货地址/.test(msg)
+}
+
+function goAddAddress() {
+  emit('update:modelValue', false)
+  router.push({ path: '/user/addresses', query: { from: 'pay' } })
+}
 
 const props = defineProps({
   modelValue: Boolean,
@@ -247,7 +264,12 @@ async function createPayment() {
     await applyPaymentResult(res)
     ElMessage.success(res.clientAction === 'scanQr' ? '请扫码支付' : '支付单已创建')
   } catch (e) {
-    ElMessage.error(e.message || '创建支付失败')
+    if (isMissingAddressError(e)) {
+      // 全局拦截器已提示「请先添加收货地址…」，这里只负责跳转，避免再弹 axios 原文
+      goAddAddress()
+      return
+    }
+    // 其它业务错误同样由全局拦截器提示，勿再弹 Request failed with status code …
   } finally {
     creating.value = false
   }

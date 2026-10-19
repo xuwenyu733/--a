@@ -36,6 +36,7 @@ export const PATH_TITLES = {
   '/user/orders': '我的订单',
   '/cart': '购物车',
   '/user/settings': '账号设置',
+  '/user/addresses': '收货地址',
   '/user/verify/student': '学生认证',
   '/user/verify/merchant': '商家入驻',
   '/user/verify/courier': '骑手认证',

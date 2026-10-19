@@ -464,7 +464,16 @@ async function markPaid(order) {
     payDialogVisible.value = false
     load()
   } catch (e) {
-    ElMessage.error(e.message || '操作失败')
+    const msg = e?.response?.data?.message || e?.message || ''
+    if (/收货地址/.test(msg)) {
+      payDialogVisible.value = false
+      router.push({ path: '/user/addresses', query: { from: 'pay' } })
+      return
+    }
+    // 业务文案已由全局拦截器提示；仅在无响应体时补一句
+    if (!e?.response?.data?.message) {
+      ElMessage.error(msg || '操作失败')
+    }
   }
 }
 

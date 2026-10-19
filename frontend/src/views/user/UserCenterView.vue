@@ -40,6 +40,7 @@
       </el-descriptions>
       <div class="actions">
         <el-button @click="$router.push('/user/settings')">账号设置</el-button>
+        <el-button @click="$router.push('/user/addresses')">收货地址</el-button>
         <el-button @click="pwdVisible = true">修改密码</el-button>
         <el-button type="primary" @click="$router.push('/user/products')">我的发布</el-button>
         <el-button @click="$router.push('/user/favorites')">我的收藏</el-button>
