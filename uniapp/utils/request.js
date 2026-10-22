@@ -51,7 +51,7 @@ function handleResponse(res, options, resolve, reject, canRetry) {
   }
 
   const url = options.url || ''
-  const isAuthEndpoint = /\/auth\/(login|login-by-code|register|wechat-login|send-code|refresh-token)/.test(url)
+  const isAuthEndpoint = /\/auth\/(login|login-by-code|register|wechat-login|send-code|reset-password|refresh-token)/.test(url)
   const token = getAccessToken()
   const isAuthError = isAuthErrorCode(body.code)
   // 登录/注册接口的 401xx 是业务失败（如账号密码错误），不要当成会话过期

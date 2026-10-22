@@ -8,6 +8,7 @@ import {
   loginByCodeSchema,
   loginSchema,
   registerSchema,
+  resetPasswordSchema,
   sendCodeSchema,
   wechatLoginSchema,
 } from '../schemas/authSchemas.js'
@@ -56,6 +57,12 @@ router.post(
 )
 router.post('/wechat-login', loginLimiter, validateBody(wechatLoginSchema), authController.wechatLogin)
 router.post('/refresh-token', refreshLimiter, authController.refreshToken)
+router.post(
+  '/reset-password',
+  loginLimiter,
+  validateBody(resetPasswordSchema),
+  authController.resetPassword
+)
 router.post('/change-password', requireAuth, validateBody(changePasswordSchema), authController.changePassword)
 router.post('/logout', requireAuth, authController.logout)
 router.get('/me', requireAuth, authController.getMe)

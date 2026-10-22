@@ -156,6 +156,25 @@ export async function changePassword(req, res, next) {
   }
 }
 
+export async function resetPassword(req, res, next) {
+  try {
+    const { phone, code, newPassword } = req.body
+    try {
+      await smsCodeService.consumeSmsCode(phone, code)
+    } catch (e) {
+      return fail(res, e.code || ErrorCodes.BAD_REQUEST, e.message || '验证码错误')
+    }
+    await authService.resetPasswordByCode({ phone, newPassword })
+    return success(res, null, '密码已重置，请使用新密码登录')
+  } catch (err) {
+    if (err.code === ErrorCodes.FORBIDDEN) {
+      return fail(res, err.code, err.message, 403)
+    }
+    if (err.code) return fail(res, err.code, err.message, 400)
+    next(err)
+  }
+}
+
 export async function wechatLogin(req, res, next) {
   try {
     const { code, regionId, nickname } = req.body

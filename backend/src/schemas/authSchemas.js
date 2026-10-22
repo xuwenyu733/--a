@@ -36,9 +36,19 @@ export const changePasswordSchema = z.object({
     .regex(/\d/, '新密码需包含数字'),
 })
 
+export const resetPasswordSchema = z.object({
+  phone,
+  code: z.string({ required_error: '请输入验证码' }).trim().min(1, '请输入验证码'),
+  newPassword: z
+    .string({ required_error: '请输入新密码' })
+    .min(6, '新密码至少 6 位')
+    .regex(/[a-zA-Z]/, '新密码需包含字母')
+    .regex(/\d/, '新密码需包含数字'),
+})
+
 export const sendCodeSchema = z.object({
   phone,
-  purpose: z.enum(['register', 'login']).optional(),
+  purpose: z.enum(['register', 'login', 'reset']).optional(),
 })
 
 export const wechatLoginSchema = z.object({

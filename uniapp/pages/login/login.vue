@@ -131,7 +131,12 @@
 
       <view class="links">
         <text class="link-reg" @tap="goRegister">注册账号 ›</text>
-        <text v-if="showDevCodeHint" class="link-hint">开发验证码：123456</text>
+        <text
+          v-if="mode === 'phone' && phoneMode === 'password'"
+          class="link-forgot"
+          @tap="goForgot"
+        >忘记密码</text>
+        <text v-else-if="showDevCodeHint" class="link-hint">开发验证码：123456</text>
       </view>
     </view>
 
@@ -358,6 +363,12 @@ async function submit() {
 
 function goRegister() {
   openPageSafe('/pages/register/register')
+}
+
+function goForgot() {
+  const p = String(phone.value || '').trim()
+  const q = /^1\d{10}$/.test(p) ? `?phone=${p}` : ''
+  openPageSafe(`/pages/login/forgot${q}`)
 }
 </script>
 
@@ -694,7 +705,8 @@ function goRegister() {
   padding: 0 4rpx;
 }
 
-.link-reg {
+.link-reg,
+.link-forgot {
   color: #3a91f7;
   font-size: 26rpx;
 }

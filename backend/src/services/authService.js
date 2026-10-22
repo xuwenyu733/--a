@@ -182,6 +182,32 @@ export async function changePassword(userId, { oldPassword, newPassword }) {
   return user
 }
 
+/** 手机号 + 短信验证码重置密码（验证码须已由 consumeSmsCode 消费） */
+export async function resetPasswordByCode({ phone, newPassword }) {
+  const pwdError = validatePassword(newPassword)
+  if (pwdError) {
+    const err = new Error(pwdError)
+    err.code = ErrorCodes.BAD_REQUEST
+    throw err
+  }
+  const user = await User.findOne({ phone }).select('+password +refreshToken')
+  if (!user) {
+    const err = new Error('该手机号未注册')
+    err.code = ErrorCodes.BAD_REQUEST
+    throw err
+  }
+  if (user.status === 'banned') {
+    const err = new Error('账号已被封禁')
+    err.code = ErrorCodes.FORBIDDEN
+    throw err
+  }
+  user.password = await bcrypt.hash(newPassword, SALT_ROUNDS)
+  user.mustChangePassword = false
+  user.refreshToken = null
+  await user.save()
+  return user
+}
+
 export async function wechatLogin({ code, regionId, nickname }) {
   const { openid, unionid } = await code2Session(code)
 
