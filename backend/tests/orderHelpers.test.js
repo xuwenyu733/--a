@@ -16,12 +16,21 @@ describe('orderHelpers', () => {
 
   it('validateCreateOrder rejects unverified student', () => {
     const r = validateCreateOrder({
-      buyer: { role: ROLES.STUDENT, studentVerified: false, _id: 'b1' },
+      buyer: { role: ROLES.STUDENT, studentVerified: false, phone: '13900001111', _id: 'b1' },
       product: { status: PRODUCT_STATUS.ON_SALE, sellerId: 's1', stock: 5 },
       quantity: 1,
     })
     expect(r.ok).toBe(false)
     expect(r.code).toBe(40301)
+  })
+
+  it('validateCreateOrder allows wechat review phone without studentVerified', () => {
+    const r = validateCreateOrder({
+      buyer: { role: ROLES.STUDENT, studentVerified: false, phone: '13800000003', _id: 'b1' },
+      product: { status: PRODUCT_STATUS.ON_SALE, sellerId: 's1', stock: 5 },
+      quantity: 1,
+    })
+    expect(r.ok).toBe(true)
   })
 
   it('validateCreateOrder rejects quantity above stock', () => {

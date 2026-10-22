@@ -1,3 +1,5 @@
+import { isWechatReviewPhone } from './studentPrivilege.js'
+
 /** @param {string} password */
 export function validatePassword(password) {
   const MIN_PASSWORD_LENGTH = 6
@@ -22,6 +24,9 @@ export function sanitizeUser(user, { self = false } = {}) {
   delete obj.refreshToken
   delete obj.wechatOpenId
   delete obj.wechatUnionId
+  if (self && isWechatReviewPhone(obj.phone)) {
+    obj.studentVerified = true
+  }
   if (!self) {
     delete obj.paymentQrUrl
     delete obj.email

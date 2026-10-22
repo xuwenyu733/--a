@@ -11,6 +11,7 @@ import { activeProductFilter } from '../utils/productQuery.js'
 import { notifyUser } from './notificationService.js'
 import * as browseHistoryService from './browseHistoryService.js'
 import { buildProductSearchText } from '../utils/productPinyin.js'
+import { isVerifiedStudentBuyer } from '../utils/studentPrivilege.js'
 export { toggleFavorite, listFavorites } from './favoriteService.js'
 export { getRecommendations } from './recommendationService.js'
 
@@ -75,7 +76,7 @@ function sanitizeProductForViewer(product, viewer) {
 
 export function canPublish(user) {
   if (user.role === ROLES.MERCHANT) return true
-  if (user.role === ROLES.STUDENT && user.studentVerified) return true
+  if (isVerifiedStudentBuyer(user)) return true
   return false
 }
 

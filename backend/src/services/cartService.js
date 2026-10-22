@@ -1,13 +1,13 @@
 import CartItem from '../models/CartItem.js'
 import Product from '../models/Product.js'
 import { PRODUCT_STATUS } from '../constants/product.js'
-import { ROLES } from '../constants/roles.js'
 import { activeProductFilter } from '../utils/productQuery.js'
 import { createOrder } from './orderService.js'
 import { paginationMeta } from '../utils/pagination.js'
+import { isVerifiedStudentBuyer } from '../utils/studentPrivilege.js'
 
 function assertStudentBuyer(user) {
-  if (user.role !== ROLES.STUDENT || !user.studentVerified) {
+  if (!isVerifiedStudentBuyer(user)) {
     const err = new Error('仅已认证学生可使用购物车')
     err.code = 40301
     throw err

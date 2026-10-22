@@ -134,6 +134,11 @@ export default {
     phone: process.env.SUPER_ADMIN_PHONE || '13800000000',
     password: process.env.SUPER_ADMIN_PASSWORD || defaultAdminPassword,
   },
+  /** 微信小程序提审测试号（逗号分隔），可跳过学生认证完成购买体验 */
+  wechatReviewPhones: (process.env.WECHAT_REVIEW_PHONES || '13800000003')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean),
   devSmsCode,
   sms,
   smsConfigured,

@@ -1,6 +1,6 @@
 import { ORDER_STATUS, ORDER_STATUS_FLOW } from '../constants/order.js'
-import { ROLES } from '../constants/roles.js'
 import { PRODUCT_STATUS } from '../constants/product.js'
+import { isVerifiedStudentBuyer } from './studentPrivilege.js'
 
 export function canTransitionOrderStatus(current, next) {
   return Boolean(ORDER_STATUS_FLOW[current]?.includes(next))
@@ -20,7 +20,7 @@ export function validateOrderStatusUpdate({ currentStatus, nextStatus, isBuyer, 
 }
 
 export function validateCreateOrder({ buyer, product, quantity = 1 }) {
-  if (buyer.role !== ROLES.STUDENT || !buyer.studentVerified) {
+  if (!isVerifiedStudentBuyer(buyer)) {
     return { ok: false, message: '仅已认证学生可下单', code: 40301 }
   }
   if (!product) {

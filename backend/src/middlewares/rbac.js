@@ -3,6 +3,7 @@ import Verification from '../models/Verification.js'
 import User from '../models/User.js'
 import { ROLES } from '../constants/roles.js'
 import { ErrorCodes, fail } from '../utils/response.js'
+import { isVerifiedStudentBuyer } from '../utils/studentPrivilege.js'
 
 export function requireRole(...allowedRoles) {
   return (req, res, next) => {
@@ -20,7 +21,7 @@ export function requireStudentVerified(req, res, next) {
   if (req.user.role !== ROLES.STUDENT) {
     return next()
   }
-  if (!req.user.studentVerified) {
+  if (!isVerifiedStudentBuyer(req.user)) {
     return fail(res, ErrorCodes.NO_PERMISSION, '请先完成学生认证', 403)
   }
   next()
