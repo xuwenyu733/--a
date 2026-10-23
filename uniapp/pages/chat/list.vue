@@ -1,10 +1,10 @@
 <template>
   <view class="page">
-    <!-- 顶部工具栏：右上角搜索好友 -->
+    <!-- 顶部工具栏：搜索交易对象昵称 -->
     <view class="toolbar">
-      <text class="toolbar-tip">聊天列表</text>
+      <text class="toolbar-tip">仅商品/订单相关的交易沟通</text>
       <view class="toolbar-search" @tap="toggleSearch">
-        <text class="toolbar-search-icon">{{ searching ? '取消' : '🔍 搜索好友' }}</text>
+        <text class="toolbar-search-icon">{{ searching ? '取消' : '🔍 搜索' }}</text>
       </view>
     </view>
 
@@ -17,7 +17,7 @@
           v-model="keyword"
           focus
           confirm-type="search"
-          placeholder="搜索好友昵称"
+          placeholder="搜索对方昵称"
           placeholder-class="search-ph"
           @confirm="hideKeyboard"
         />
@@ -32,11 +32,11 @@
         :loading="false"
         :error="loadError"
         :has-data="list.length > 0"
-        empty-text="暂无会话，去商品页联系卖家吧"
+        empty-text="暂无交易消息，去商品页联系卖家吧"
         @retry="loadList"
       />
       <view v-else-if="loggedIn && searching && !filteredList.length" class="empty">
-        {{ keyword.trim() ? '未找到相关好友' : '输入昵称搜索好友' }}
+        {{ keyword.trim() ? '未找到相关会话' : '输入昵称搜索' }}
       </view>
 
       <view

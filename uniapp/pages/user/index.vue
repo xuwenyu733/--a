@@ -21,17 +21,7 @@
     </view>
 
     <view class="main">
-      <!-- 好友号 -->
-      <view v-if="loggedIn && friendCode" class="friend-code-card">
-        <view class="friend-code-row">
-          <text class="friend-code-label">我的好友号</text>
-          <text class="friend-code-value">{{ friendCode }}</text>
-          <text class="friend-code-copy" @tap="copyFriendCode">复制</text>
-        </view>
-        <text class="friend-code-hint">把好友号发给同学，对方可搜索添加你</text>
-      </view>
-
-      <!-- 快捷入口 -->
+      <!-- 快捷入口（隐藏好友号/添加好友，避免被判定为社交交友类目） -->
       <view v-if="loggedIn" class="quick-grid">
         <view class="quick-item" @tap="goPublish">
           <image class="quick-icon-img" :src="mineIcon('publish')" mode="aspectFit" />
@@ -64,11 +54,6 @@
       <view class="menu-card">
         <view class="menu-head">
           <text class="menu-head-title">校园市集</text>
-        </view>
-        <view class="menu-item" @tap="goFriendSearch">
-          <image class="menu-icon-img" :src="menuIcon('add-friend')" mode="aspectFit" />
-          <text class="menu-label">添加好友</text>
-          <text class="menu-arrow">›</text>
         </view>
         <view class="menu-item" @tap="goDelivery">
           <image class="menu-icon-img" :src="menuIcon('campus-errand')" mode="aspectFit" />

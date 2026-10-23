@@ -23,10 +23,13 @@ export async function getConversation(req, res, next) {
 export async function createConversation(req, res, next) {
   try {
     const { receiverId, productId } = req.body
+    if (!productId) {
+      return fail(res, ErrorCodes.BAD_REQUEST, '请从商品或订单发起交易沟通')
+    }
     const conversation = await chatService.getOrCreateConversation(
       req.user._id,
       receiverId,
-      productId || null
+      productId
     )
     return success(res, chatService.formatConversationForUser(conversation, req.user._id))
   } catch (err) {

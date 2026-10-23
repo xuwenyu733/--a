@@ -31,14 +31,14 @@
     {
       "path": "pages/chat/list",
       "style": {
-        "navigationBarTitleText": "消息",
+        "navigationBarTitleText": "交易消息",
         "enablePullDownRefresh": true
       }
     },
     {
       "path": "pages/chat/room",
       "style": {
-        "navigationBarTitleText": "聊天"
+        "navigationBarTitleText": "交易沟通"
       }
     },
     {
@@ -239,7 +239,7 @@
       },
       {
         "pagePath": "pages/chat/list",
-        "text": "消息",
+        "text": "交易",
         "iconPath": "static/tab/chat.png",
         "selectedIconPath": "static/tab/chat-active.png"
       },

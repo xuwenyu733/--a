@@ -4,7 +4,8 @@ import { MAX_MESSAGE_CONTENT_LENGTH } from '../utils/chatHelpers.js'
 
 export const createConversationSchema = z.object({
   receiverId: objectId,
-  productId: objectId.optional().nullable(),
+  /** 交易沟通须关联商品，避免被判定为陌生人社交 */
+  productId: objectId,
 })
 
 export const contactSellerSchema = z.object({

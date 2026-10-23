@@ -321,9 +321,14 @@ async function goChat(order) {
   const peerId = role.value === 'buy' ? order.sellerId?._id : order.buyerId?._id
   if (!peerId) return
   try {
+    const productId = order.productId?._id || order.productId
+    if (!productId) {
+      uni.showToast({ title: '订单缺少关联商品，无法发起沟通', icon: 'none' })
+      return
+    }
     const conv = await createConversation({
       receiverId: peerId,
-      productId: order.productId?._id,
+      productId,
     })
     uni.navigateTo({ url: `/pages/chat/room?id=${conv._id}` })
   } catch (e) {
