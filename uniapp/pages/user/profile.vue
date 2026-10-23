@@ -163,19 +163,10 @@ async function onAcceptFriend() {
 }
 
 async function onChat() {
-  if (!ensureLogin() || acting) return
-  acting = true
-  try {
-    const conv = await createConversation({ receiverId: userId })
-    const id = conv?._id || conv?.id
-    if (!id) throw new Error('无法发起聊天')
-    const title = encodeURIComponent(profile.value?.user?.nickname || '聊天')
-    uni.navigateTo({ url: `/pages/chat/room?id=${id}&title=${title}` })
-  } catch (e) {
-    uni.showToast({ title: e.message || '无法发起聊天', icon: 'none' })
-  } finally {
-    acting = false
-  }
+  uni.showToast({
+    title: '请从商品详情或订单发起交易沟通',
+    icon: 'none',
+  })
 }
 </script>
 
