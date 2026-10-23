@@ -31,7 +31,7 @@ const props = defineProps({
 
 const preferThumb = ref(true)
 const imageError = ref(false)
-const PRODUCT_PLACEHOLDER = '/static/product-placeholder.svg'
+const PRODUCT_PLACEHOLDER = '/static/product-placeholder.png'
 
 const rawPath = computed(() => props.product.cover || props.product.images?.[0])
 

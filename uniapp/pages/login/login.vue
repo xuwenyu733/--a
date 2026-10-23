@@ -164,7 +164,7 @@ import { openPageSafe } from '@/utils/navigate'
 
 /** 运行时字符串路径，避免被编译进缺失的 /assets/*.hash.png */
 const IMG = {
-  bg: '/static/login/bg.png',
+  bg: '/static/login/bg.jpg',
   cap: '/static/login/cap.png',
   wechat: '/static/login/wechat.png',
   wechatWhite: '/static/login/wechat-white.png',

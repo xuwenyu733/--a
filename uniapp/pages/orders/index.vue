@@ -1,5 +1,10 @@
 <template>
   <view class="page-orders">
+    <image class="page-bg" :src="ordersBgSrc" mode="aspectFill" />
+    <view class="hero">
+      <text class="hero-title">订单管理</text>
+      <text class="hero-sub">查看您的订单详情，轻松管理每一笔交易</text>
+    </view>
     <view class="header-bar">
       <view class="flow-hint muted">
         <text>流程：下单 - 付款 - 卖家确认收款 - 确认完成 - 评价；完成后 7 天内可申请退款</text>
@@ -50,17 +55,57 @@
             </view>
           </view>
           <view class="actions">
-            <button size="mini" @tap="goChat(item)">联系对方</button>
-            <button v-if="role === 'sell' && item.status === 'confirmed' && item.paymentStatus === 'buyer_marked'" size="mini" type="primary" @tap="confirmPaid(item._id)">确认收款</button>
-            <button v-if="role === 'buy' && item.status === 'confirmed' && item.paymentStatus !== 'paid_online' && item.paymentStatus !== 'seller_confirmed'" size="mini" type="primary" @tap="openPay(item)">去付款</button>
-            <button v-if="role === 'buy' && item.status === 'confirmed' && item.paymentStatus !== 'paid_online' && item.paymentStatus !== 'seller_confirmed' && item.paymentStatus !== 'buyer_marked'" size="mini" @tap="markManualPaid(item._id)">我已付款</button>
-            <button v-if="item.status === 'confirmed'" size="mini" type="primary" @tap="updateStatus(item._id, 'completed')">确认完成</button>
-            <button v-if="item.status === 'confirmed' || item.status === 'pending'" size="mini" @tap="updateStatus(item._id, 'cancelled')">取消订单</button>
-            <button v-if="role === 'buy' && item.canApplyRefund" size="mini" type="warn" @tap="openRefundApply(item)">申请退款</button>
-            <button v-if="role === 'buy' && item.refund?.status === 'pending'" size="mini" @tap="cancelRefund(item)">撤销退款</button>
-            <button v-if="role === 'sell' && item.refund?.status === 'pending'" size="mini" type="primary" @tap="openRefundRespond(item)">处理退款</button>
-            <button v-if="item.status === 'completed' || item.status === 'cancelled'" size="mini" @tap="removeRecord(item._id)">删除记录</button>
-            <button v-if="item.status === 'completed' && item.reviewSummary?.canReview" size="mini" type="primary" @tap="goReview(item)">评价对方</button>
+            <view class="action-btn" @tap="goChat(item)">联系对方</view>
+            <view
+              v-if="role === 'sell' && item.status === 'confirmed' && item.paymentStatus === 'buyer_marked'"
+              class="action-btn primary"
+              @tap="confirmPaid(item._id)"
+            >确认收款</view>
+            <view
+              v-if="role === 'buy' && item.status === 'confirmed' && item.paymentStatus !== 'paid_online' && item.paymentStatus !== 'seller_confirmed'"
+              class="action-btn primary"
+              @tap="openPay(item)"
+            >去付款</view>
+            <view
+              v-if="role === 'buy' && item.status === 'confirmed' && item.paymentStatus !== 'paid_online' && item.paymentStatus !== 'seller_confirmed' && item.paymentStatus !== 'buyer_marked'"
+              class="action-btn"
+              @tap="markManualPaid(item._id)"
+            >我已付款</view>
+            <view
+              v-if="item.status === 'confirmed'"
+              class="action-btn primary"
+              @tap="updateStatus(item._id, 'completed')"
+            >确认完成</view>
+            <view
+              v-if="item.status === 'confirmed' || item.status === 'pending'"
+              class="action-btn"
+              @tap="updateStatus(item._id, 'cancelled')"
+            >取消订单</view>
+            <view
+              v-if="role === 'buy' && item.canApplyRefund"
+              class="action-btn warn"
+              @tap="openRefundApply(item)"
+            >申请退款</view>
+            <view
+              v-if="role === 'buy' && item.refund?.status === 'pending'"
+              class="action-btn"
+              @tap="cancelRefund(item)"
+            >撤销退款</view>
+            <view
+              v-if="role === 'sell' && item.refund?.status === 'pending'"
+              class="action-btn primary"
+              @tap="openRefundRespond(item)"
+            >处理退款</view>
+            <view
+              v-if="item.status === 'completed' || item.status === 'cancelled'"
+              class="action-btn"
+              @tap="removeRecord(item._id)"
+            >删除记录</view>
+            <view
+              v-if="item.status === 'completed' && item.reviewSummary?.canReview"
+              class="action-btn primary"
+              @tap="goReview(item)"
+            >评价对方</view>
             <text v-if="item.status === 'completed' && item.reviewSummary?.myReview" class="tag success">已评价 {{ item.reviewSummary.myReview.rating }} 星</text>
           </view>
         </view>
@@ -206,6 +251,9 @@ const sellerQr = computed(() => {
   const url = payOrder.value?.sellerId?.paymentQrUrl
   return url ? getFileUrl(url) : ''
 })
+
+/** 运行时路径，避免编译成 /assets/xxx 哈希导致小程序 500 */
+const ordersBgSrc = '/static/mine/orders-bg.jpg'
 
 const statusOptions = [
   { value: '', label: '全部' },
@@ -648,29 +696,74 @@ async function cancelRefund(order) {
 
 <style lang="scss" scoped>
 .page-orders {
+  position: relative;
   height: 100vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: #f5f7fa;
+  background: #eaf4ff;
+}
+
+.page-bg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.hero {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  padding: 28rpx 36rpx 48rpx;
+}
+
+.hero-title {
+  display: block;
+  color: #fff;
+  font-size: 44rpx;
+  font-weight: 700;
+  letter-spacing: 1rpx;
+  text-shadow: 0 4rpx 12rpx rgba(20, 70, 160, 0.35);
+}
+
+.hero-sub {
+  display: block;
+  margin-top: 12rpx;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 24rpx;
+  line-height: 1.5;
 }
 
 .header-bar {
+  position: relative;
+  z-index: 1;
   flex-shrink: 0;
-  padding: 16rpx 24rpx 12rpx;
-  background: #f5f7fa;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+  margin: 0 24rpx;
+  padding: 20rpx 20rpx 16rpx;
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 28rpx 28rpx 0 0;
+  box-shadow: 0 -8rpx 28rpx rgba(40, 100, 180, 0.12);
 }
 
 .orders-scroll {
+  position: relative;
+  z-index: 1;
   flex: 1;
   height: 0;
   width: 100%;
 }
 
 .orders-body {
-  padding: 0 24rpx 24rpx;
+  margin: 0 24rpx;
+  padding: 8rpx 24rpx 24rpx;
   box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.78);
+  border-radius: 0 0 24rpx 24rpx;
+  min-height: 40vh;
 }
 
 .flow-hint {
@@ -729,7 +822,43 @@ async function cancelRefund(order) {
 .peer { display: block; margin-top: 8rpx; }
 .pay-hint { display: block; margin-top: 8rpx; color: #e6a23c; font-size: 24rpx; }
 .refund-hint { display: block; margin-top: 8rpx; color: #f56c6c; font-size: 24rpx; }
-.actions { margin-top: 16rpx; display: flex; flex-wrap: wrap; gap: 12rpx; }
+.actions {
+  margin-top: 20rpx;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12rpx;
+}
+.action-btn {
+  flex-shrink: 0;
+  min-width: 140rpx;
+  height: 56rpx;
+  padding: 0 22rpx;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 28rpx;
+  border: 1rpx solid #dcdfe6;
+  background: #fff;
+  color: #303133;
+  font-size: 24rpx;
+  line-height: 1;
+}
+.action-btn:active {
+  opacity: 0.85;
+}
+.action-btn.primary {
+  border-color: #67c23a;
+  background: #67c23a;
+  color: #fff;
+}
+.action-btn.warn {
+  border-color: #f56c6c;
+  background: #f56c6c;
+  color: #fff;
+}
 .pay-tabs { display: flex; gap: 24rpx; margin: 20rpx 0; font-size: 28rpx; }
 .pay-tabs .active { color: #409eff; font-weight: 600; border-bottom: 4rpx solid #409eff; padding-bottom: 4rpx; }
 .channel { display: block; padding: 16rpx 0; }

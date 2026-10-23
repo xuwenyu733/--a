@@ -19,7 +19,18 @@ function copyTree(src, dest) {
   fs.cpSync(src, dest, { recursive: true, force: true })
 }
 
+/** 先清空目标，避免旧版 api/config/utils 等残留导致白屏/串包 */
+function wipeDest(dest) {
+  if (!fs.existsSync(dest)) return
+  const keep = new Set(['project.private.config.json'])
+  for (const name of fs.readdirSync(dest)) {
+    if (keep.has(name)) continue
+    fs.rmSync(path.join(dest, name), { recursive: true, force: true })
+  }
+}
+
 function syncTo(dest) {
+  wipeDest(dest)
   copyTree(SRC, dest)
   if (fs.existsSync(STATIC)) {
     copyTree(STATIC, path.join(dest, 'static'))

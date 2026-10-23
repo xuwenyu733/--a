@@ -12,18 +12,37 @@ const TAB_CHAT_INDEX = 2
 let wsInited = false
 const listListeners = new Set()
 
-function updateTabBadge() {
-  const n = chatUnread.value
+const TAB_ROUTES = new Set([
+  'pages/index/index',
+  'pages/products/list',
+  'pages/chat/list',
+  'pages/user/index',
+])
+
+function isOnTabBarPage() {
   try {
-    if (n > 0) {
-      uni.setTabBarBadge({
-        index: TAB_CHAT_INDEX,
-        text: n > 99 ? '99+' : String(n),
-      })
-    } else {
-      uni.removeTabBarBadge({ index: TAB_CHAT_INDEX })
-    }
-  } catch { /* ignore */ }
+    const pages = getCurrentPages()
+    const cur = pages[pages.length - 1]
+    const route = (cur && (cur.route || cur.$page?.fullPath?.replace(/^\//, '').split('?')[0])) || ''
+    return TAB_ROUTES.has(route)
+  } catch {
+    return false
+  }
+}
+
+function updateTabBadge() {
+  // 非 tab 页调用会报 removeTabBarBadge:fail not TabBar page
+  if (!isOnTabBarPage()) return
+  const n = chatUnread.value
+  if (n > 0) {
+    uni.setTabBarBadge({
+      index: TAB_CHAT_INDEX,
+      text: n > 99 ? '99+' : String(n),
+      fail() {},
+    })
+  } else {
+    uni.removeTabBarBadge({ index: TAB_CHAT_INDEX, fail() {} })
+  }
 }
 
 export function setNotifyUnread(n) {

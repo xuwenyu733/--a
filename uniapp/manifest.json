@@ -2,8 +2,8 @@
   "name": "校园市集",
   "appid": "",
   "description": "校园市集 · 二手交易与校园生活服务",
-  "versionName": "1.0.3",
-  "versionCode": "103",
+  "versionName": "1.0.4",
+  "versionCode": "104",
   "transformPx": false,
   "mp-weixin": {
     "appid": "wx415cdef1891013fd",

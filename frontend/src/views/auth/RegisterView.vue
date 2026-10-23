@@ -239,7 +239,7 @@ async function handleRegister() {
 .login-bg {
   position: fixed;
   inset: 0;
-  background: url('/login/bg.png?v=4') center / cover no-repeat;
+  background: url('/login/bg.jpg?v=5') center / cover no-repeat;
 }
 
 .login-card {
