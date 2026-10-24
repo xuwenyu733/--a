@@ -48,11 +48,20 @@ export const resetPasswordSchema = z.object({
 
 export const sendCodeSchema = z.object({
   phone,
-  purpose: z.enum(['register', 'login', 'reset']).optional(),
+  purpose: z.enum(['register', 'login', 'reset', 'bind']).optional(),
 })
 
 export const wechatLoginSchema = z.object({
   code: z.string({ required_error: '缺少微信 code' }).trim().min(1, '缺少微信 code'),
   regionId: z.string().optional(),
   nickname: z.string().trim().max(30).optional(),
+})
+
+export const bindPhoneSchema = z.object({
+  phone,
+  code: z.string({ required_error: '请输入验证码' }).trim().min(1, '请输入验证码'),
+})
+
+export const bindWechatSchema = z.object({
+  code: z.string({ required_error: '缺少微信 code' }).trim().min(1, '缺少微信 code'),
 })

@@ -207,6 +207,12 @@
       }
     },
     {
+      "path": "pages/auth/bind-phone",
+      "style": {
+        "navigationBarTitleText": "绑定手机号"
+      }
+    },
+    {
       "path": "pages/user/address",
       "style": {
         "navigationBarTitleText": "收货地址"

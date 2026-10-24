@@ -8,8 +8,8 @@ import {
 } from '../utils/authCookie.js'
 import { isMiniProgramClient } from '../utils/clientType.js'
 
-function buildAuthData(req, { user, accessToken, refreshToken }) {
-  const data = { user, accessToken }
+function buildAuthData(req, { user, accessToken, refreshToken, ...extra }) {
+  const data = { user, accessToken, ...extra }
   if (isMiniProgramClient(req) && refreshToken) {
     data.refreshToken = refreshToken
   }
@@ -216,6 +216,56 @@ export async function getMe(req, res, next) {
       merchantProfile,
     })
   } catch (err) {
+    next(err)
+  }
+}
+
+export async function bindPhone(req, res, next) {
+  try {
+    const { phone, code } = req.body
+    try {
+      await smsCodeService.consumeSmsCode(phone, code)
+    } catch (e) {
+      return fail(res, e.code || ErrorCodes.BAD_REQUEST, e.message || '验证码错误')
+    }
+    const { user, accessToken, refreshToken, merged } = await authService.bindPhone(req.user._id, {
+      phone,
+    })
+    setRefreshTokenCookie(res, refreshToken)
+    const populated = await user.populate('regionId', 'name code')
+    return success(
+      res,
+      buildAuthData(req, {
+        user: authService.sanitizeUser(populated, { self: true }),
+        accessToken,
+        refreshToken,
+        merged,
+      }),
+      merged ? '已合并到该手机号账号' : '手机号绑定成功'
+    )
+  } catch (err) {
+    if (err.code) return fail(res, err.code, err.message, err.code === 40300 ? 403 : 400)
+    next(err)
+  }
+}
+
+export async function bindWechat(req, res, next) {
+  try {
+    const { code } = req.body
+    const { user, accessToken, refreshToken } = await authService.bindWechat(req.user._id, { code })
+    setRefreshTokenCookie(res, refreshToken)
+    const populated = await user.populate('regionId', 'name code')
+    return success(
+      res,
+      buildAuthData(req, {
+        user: authService.sanitizeUser(populated, { self: true }),
+        accessToken,
+        refreshToken,
+      }),
+      '微信绑定成功'
+    )
+  } catch (err) {
+    if (err.code) return fail(res, err.code, err.message, 400)
     next(err)
   }
 }

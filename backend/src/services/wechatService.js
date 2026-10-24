@@ -8,7 +8,9 @@ export async function code2Session(code) {
   const { appId, appSecret, sandbox } = config.wechat.miniProgram
 
   if (sandbox || !appId || !appSecret) {
-    const openid = `sandbox_${crypto.createHash('sha256').update(String(code)).digest('hex').slice(0, 28)}`
+    // code 每次 uni.login 都不同；沙箱必须用稳定 openid，否则每次登录都是新用户（地址/订单会「消失」）
+    const seed = process.env.WECHAT_SANDBOX_OPENID_SEED || 'campus-mp-dev'
+    const openid = `sandbox_${crypto.createHash('sha256').update(String(seed)).digest('hex').slice(0, 28)}`
     return { openid, unionid: '', sessionKey: 'sandbox' }
   }
 

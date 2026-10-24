@@ -95,6 +95,22 @@
       </view>
     </view>
 
+    <!-- 账号绑定：避免微信/手机号两套账号导致地址丢失 -->
+    <view class="card">
+      <view class="card-head">
+        <text class="card-title">账号绑定</text>
+        <text class="card-sub">绑定后换登录方式可保留地址与订单</text>
+      </view>
+      <view v-if="needsPhoneBind" class="bind-row" @tap="goBindPhone">
+        <text class="bind-label">绑定手机号</text>
+        <text class="bind-action">去绑定 ›</text>
+      </view>
+      <view v-else class="bind-row" @tap="doBindWechat">
+        <text class="bind-label">绑定微信</text>
+        <text class="bind-action">{{ bindingWx ? '绑定中…' : '去绑定 ›' }}</text>
+      </view>
+    </view>
+
     <!-- 底部保存 -->
     <view class="footer-bar">
       <button class="save-btn" type="primary" :loading="saving" @tap="save">保存</button>
@@ -105,17 +121,22 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { getMe } from '@/api/auth'
+import { getMe, bindWechat } from '@/api/auth'
 import { updateProfile } from '@/api/user'
 import { uploadProductImage, pickUploadPath } from '@/utils/upload'
 import { getFileUrl } from '@/utils/fileUrl'
 import { profileFromUser, profileToUpdatePayload } from '@/utils/profileForm'
 import { ensureLogin, getUser, saveSession, getAccessToken, getRefreshToken } from '@/utils/auth'
+import { getWxLoginCode } from '@/utils/wechat'
+import { onSessionReady } from '@/utils/unread'
+import { openPageSafe } from '@/utils/navigate'
 
 const saving = ref(false)
 const loading = ref(false)
 const loadError = ref('')
 const uploadingAvatar = ref(false)
+const bindingWx = ref(false)
+const needsPhoneBind = ref(false)
 const form = ref({ nickname: '', bio: '', email: '', paymentQrUrl: '', avatar: '' })
 const qrPreview = ref('')
 const avatarPreview = ref('')
@@ -126,8 +147,30 @@ const avatarLetter = computed(() => (form.value.nickname || '?')[0])
 function applyUserToForm(user) {
   form.value = profileFromUser(user)
   friendCode.value = user?.friendCode || ''
+  needsPhoneBind.value = Boolean(user?.needsPhoneBind)
   qrPreview.value = form.value.paymentQrUrl ? getFileUrl(form.value.paymentQrUrl) : ''
   avatarPreview.value = form.value.avatar ? getFileUrl(form.value.avatar) : ''
+}
+
+function goBindPhone() {
+  openPageSafe('/pages/auth/bind-phone')
+}
+
+async function doBindWechat() {
+  if (bindingWx.value) return
+  bindingWx.value = true
+  try {
+    const code = await getWxLoginCode()
+    const data = await bindWechat({ code })
+    saveSession(data)
+    onSessionReady()
+    applyUserToForm(data.user)
+    uni.showToast({ title: '微信已绑定', icon: 'success' })
+  } catch (e) {
+    uni.showToast({ title: e.message || '绑定失败', icon: 'none' })
+  } finally {
+    bindingWx.value = false
+  }
 }
 
 function copyFriendCode() {
@@ -295,6 +338,20 @@ async function save() {
   color: #303133;
 }
 
+.bind-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8rpx 0 4rpx;
+}
+.bind-label {
+  font-size: 28rpx;
+  color: #303133;
+}
+.bind-action {
+  font-size: 26rpx;
+  color: #409eff;
+}
 .card-sub {
   display: block;
   margin-top: 6rpx;

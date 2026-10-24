@@ -4,6 +4,8 @@ import { ROLES } from '../constants/roles.js'
 const userSchema = new mongoose.Schema(
   {
     phone: { type: String, required: true, trim: true },
+    /** 微信一键登录生成的占位手机号；绑定真实手机后清 false */
+    phonePlaceholder: { type: Boolean, default: false },
     password: { type: String, required: true, select: false },
     wechatOpenId: { type: String, sparse: true, unique: true },
     wechatUnionId: { type: String, default: '' },

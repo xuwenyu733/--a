@@ -56,6 +56,11 @@ async function submit() {
     })
     saveSession(data)
     onSessionReady()
+    if (data?.user?.needsPhoneBind) {
+      uni.showToast({ title: '请绑定手机号以同步地址', icon: 'none' })
+      setTimeout(() => uni.redirectTo({ url: '/pages/auth/bind-phone' }), 400)
+      return
+    }
     uni.showToast({ title: '登录成功', icon: 'success' })
     setTimeout(() => uni.switchTab({ url: '/pages/user/index' }), 400)
   } catch (e) {

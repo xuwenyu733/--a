@@ -1,4 +1,14 @@
 import { isWechatReviewPhone } from './studentPrivilege.js'
+import { syntheticPhoneFromOpenId } from '../services/wechatService.js'
+
+/** 微信登录生成的占位手机号账号（尚未绑定真实手机） */
+export function isPlaceholderWechatAccount(user) {
+  if (!user) return false
+  if (user.phonePlaceholder) return true
+  if (!user.wechatOpenId || !user.phone) return false
+  const base = syntheticPhoneFromOpenId(user.wechatOpenId)
+  return user.phone === base || String(user.phone).startsWith(base.slice(0, 8))
+}
 
 /** @param {string} password */
 export function validatePassword(password) {
@@ -24,6 +34,8 @@ export function sanitizeUser(user, { self = false } = {}) {
   delete obj.refreshToken
   delete obj.wechatOpenId
   delete obj.wechatUnionId
+  obj.needsPhoneBind = isPlaceholderWechatAccount(user)
+  delete obj.phonePlaceholder
   if (self && isWechatReviewPhone(obj.phone)) {
     obj.studentVerified = true
   }

@@ -4,6 +4,8 @@ import * as authController from '../controllers/authController.js'
 import { requireAuth } from '../middlewares/auth.js'
 import { validateBody } from '../middlewares/validate.js'
 import {
+  bindPhoneSchema,
+  bindWechatSchema,
   changePasswordSchema,
   loginByCodeSchema,
   loginSchema,
@@ -64,6 +66,8 @@ router.post(
   authController.resetPassword
 )
 router.post('/change-password', requireAuth, validateBody(changePasswordSchema), authController.changePassword)
+router.post('/bind-phone', requireAuth, validateBody(bindPhoneSchema), authController.bindPhone)
+router.post('/bind-wechat', requireAuth, validateBody(bindWechatSchema), authController.bindWechat)
 router.post('/logout', requireAuth, authController.logout)
 router.get('/me', requireAuth, authController.getMe)
 

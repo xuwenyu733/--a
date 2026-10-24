@@ -1,11 +1,12 @@
 import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
 import User from '../models/User.js'
+import UserAddress from '../models/UserAddress.js'
 import Region from '../models/Region.js'
 import { ROLES } from '../constants/roles.js'
 import { buildTokenPayload, signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/jwt.js'
 import { code2Session, syntheticPhoneFromOpenId } from './wechatService.js'
-import { validatePassword, sanitizeUser } from '../utils/authHelpers.js'
+import { validatePassword, sanitizeUser, isPlaceholderWechatAccount } from '../utils/authHelpers.js'
 import { generateFriendCode } from '../utils/friendCode.js'
 import { ErrorCodes } from '../utils/response.js'
 
@@ -247,6 +248,7 @@ export async function wechatLogin({ code, regionId, nickname }) {
   const hashed = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), SALT_ROUNDS)
   user = await User.create({
     phone,
+    phonePlaceholder: true,
     password: hashed,
     nickname: nickname?.trim() || `微信用户${phone.slice(-4)}`,
     friendCode: await allocateFriendCode(),
@@ -260,4 +262,102 @@ export async function wechatLogin({ code, regionId, nickname }) {
   user.lastLoginAt = new Date()
   await user.save()
   return { user, ...tokens, isNewUser: true }
+}
+
+/** 微信用户绑定真实手机号；若该手机号已有账号则合并（地址等迁过去） */
+export async function bindPhone(userId, { phone }) {
+  const current = await User.findById(userId).select('+password +refreshToken')
+  if (!current) {
+    const err = new Error('用户不存在')
+    err.code = 40400
+    throw err
+  }
+  if (!isPlaceholderWechatAccount(current) && current.phone === phone) {
+    current.phonePlaceholder = false
+    await current.save()
+    const tokens = await issueTokens(current)
+    return { user: current, ...tokens, merged: false }
+  }
+  if (!isPlaceholderWechatAccount(current) && current.phone !== phone) {
+    const err = new Error('当前账号已绑定手机号，如需更换请联系客服')
+    err.code = ErrorCodes.BAD_REQUEST
+    throw err
+  }
+
+  const existing = await User.findOne({ phone }).select('+password +refreshToken')
+  if (existing && String(existing._id) !== String(current._id)) {
+    if (existing.status === 'banned') {
+      const err = new Error('该手机号账号已被封禁')
+      err.code = ErrorCodes.FORBIDDEN
+      throw err
+    }
+    if (existing.wechatOpenId && existing.wechatOpenId !== current.wechatOpenId) {
+      const err = new Error('该手机号已绑定其他微信，请用手机号登录')
+      err.code = ErrorCodes.BAD_REQUEST
+      throw err
+    }
+
+    const openid = current.wechatOpenId
+    const unionid = current.wechatUnionId || ''
+    await UserAddress.updateMany({ userId: current._id }, { $set: { userId: existing._id } })
+    // 先释放 openid 唯一索引，再挂到手机号账号并删除占位用户
+    await User.updateOne({ _id: current._id }, { $unset: { wechatOpenId: 1 }, $set: { wechatUnionId: '' } })
+
+    existing.wechatOpenId = openid
+    existing.wechatUnionId = unionid || existing.wechatUnionId || ''
+    existing.phonePlaceholder = false
+    if (!existing.nickname || String(existing.nickname).startsWith('微信用户')) {
+      existing.nickname = current.nickname || existing.nickname
+    }
+    if (!existing.avatar && current.avatar) existing.avatar = current.avatar
+    if (!existing.regionId && current.regionId) existing.regionId = current.regionId
+    existing.lastLoginAt = new Date()
+    await existing.save()
+    await User.deleteOne({ _id: current._id })
+
+    const tokens = await issueTokens(existing)
+    return { user: existing, ...tokens, merged: true }
+  }
+
+  current.phone = phone
+  current.phonePlaceholder = false
+  await current.save()
+  const tokens = await issueTokens(current)
+  return { user: current, ...tokens, merged: false }
+}
+
+/** 手机号账号绑定当前微信，之后可用微信一键登录回到同一账号 */
+export async function bindWechat(userId, { code }) {
+  const user = await User.findById(userId).select('+password +refreshToken')
+  if (!user) {
+    const err = new Error('用户不存在')
+    err.code = 40400
+    throw err
+  }
+  if (isPlaceholderWechatAccount(user)) {
+    const err = new Error('请先绑定手机号')
+    err.code = ErrorCodes.BAD_REQUEST
+    throw err
+  }
+
+  const { openid, unionid } = await code2Session(code)
+  const occupied = await User.findOne({ wechatOpenId: openid })
+  if (occupied && String(occupied._id) !== String(user._id)) {
+    if (isPlaceholderWechatAccount(occupied)) {
+      await UserAddress.updateMany({ userId: occupied._id }, { $set: { userId: user._id } })
+      await User.updateOne({ _id: occupied._id }, { $unset: { wechatOpenId: 1 } })
+      await User.deleteOne({ _id: occupied._id })
+    } else {
+      const err = new Error('该微信已绑定其他账号')
+      err.code = ErrorCodes.BAD_REQUEST
+      throw err
+    }
+  }
+
+  user.wechatOpenId = openid
+  user.wechatUnionId = unionid || user.wechatUnionId || ''
+  user.phonePlaceholder = false
+  await user.save()
+  const tokens = await issueTokens(user)
+  return { user, ...tokens }
 }
